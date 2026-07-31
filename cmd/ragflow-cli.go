@@ -22,10 +22,10 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"ragflow/internal/common"
+	"ragflow/go/common"
 	"syscall"
 
-	"ragflow/internal/cli"
+	"ragflow/go/cli"
 )
 
 func main() {

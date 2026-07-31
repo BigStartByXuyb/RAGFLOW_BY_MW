@@ -43,8 +43,8 @@ import (
 	"sort"
 	"strings"
 
-	"ragflow/internal/agent/component"
-	"ragflow/internal/agent/tool"
+	"ragflow/go/agent/component"
+	"ragflow/go/agent/tool"
 )
 
 func main() {

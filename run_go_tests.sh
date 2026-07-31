@@ -2,22 +2,22 @@
 set -e
 
 PACKAGES=(
-    "./internal/admin/..."
-#    "./internal/binding/..."
-    "./internal/cache/..."
-    "./internal/cli/..."
-    "./internal/common/..."
-    "./internal/dao/..."
-    "./internal/engine/..."
-    "./internal/entity/..."
-    "./internal/handler/..."
-    "./internal/ingestion/..."
-    "./internal/router/..."
-    "./internal/server/..."
-    "./internal/service/..."
-    "./internal/storage/..."
-    "./internal/tokenizer/..."
-    "./internal/utility/..."
+    "./go/admin/..."
+#    "./go/binding/..."
+    "./go/cache/..."
+    "./go/cli/..."
+    "./go/common/..."
+    "./go/dao/..."
+    "./go/engine/..."
+    "./go/entity/..."
+    "./go/handler/..."
+    "./go/ingestion/..."
+    "./go/router/..."
+    "./go/server/..."
+    "./go/service/..."
+    "./go/storage/..."
+    "./go/tokenizer/..."
+    "./go/utility/..."
 )
 
 echo "Running tests for specific packages..."
@@ -28,4 +28,4 @@ for pkg in "${PACKAGES[@]}"; do
 done
 
 #echo "Running all tests except failed packages..."
-#go test $(go list ./internal/... | grep -v -E '(cli|service|binding)$') -v
+#go test $(go list ./go/... | grep -v -E '(cli|service|binding)$') -v

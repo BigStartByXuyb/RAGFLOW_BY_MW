@@ -55,7 +55,7 @@ import (
 	"sort"
 	"strings"
 
-	dslpkg "ragflow/internal/agent/dsl"
+	dslpkg "ragflow/go/agent/dsl"
 )
 
 func main() {

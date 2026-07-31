@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
 # Build directories
-CPP_DIR="$PROJECT_ROOT/internal/binding/cpp"
+CPP_DIR="$PROJECT_ROOT/cpp"
 BUILD_DIR="$CPP_DIR/cmake-build-release"
 RAGFLOW_SERVER_BINARY="$PROJECT_ROOT/bin/ragflow_server"
 RAGFLOW_CLI_BINARY="$PROJECT_ROOT/bin/ragflow-cli"
@@ -417,7 +417,7 @@ setup_cgo_env() {
 }
 
 # Run Go unit tests with the same CGO env as `build_go`. Any extra args are
-# forwarded to `go test`, e.g. `./build.sh --test -run TestFoo ./internal/admin/...`.
+# forwarded to `go test`, e.g. `./build.sh --test -run TestFoo ./go/admin/...`.
 run_go_tests() {
     print_section "Running Go tests"
 
@@ -453,7 +453,7 @@ run() {
     cd "$PROJECT_ROOT"
 
     # admin_server must be running before ragflow_server, otherwise ragflow_server's
-    # heartbeats to admin will error out (see internal/development.md).
+    # heartbeats to admin will error out (see go/development.md).
     print_section "Starting admin server (background)"
     "$RAGFLOW_SERVER_BINARY" --admin &
     ADMIN_PID=$!
@@ -489,7 +489,7 @@ OPTIONS:
     --go, -g        Build only Go server (requires C++ library to be built)
     --test, -t      Run Go unit tests (sets up CGO env for office_oxide).
                     Any extra args are forwarded to `go test`, e.g.
-                    `$0 --test -run TestFoo ./internal/admin/...`
+                    `$0 --test -run TestFoo ./go/admin/...`
     --clean, -C     Clean all build artifacts
     --run, -r       Build and run the server
     --strip, -s     Strip debug symbols from Go binaries (-ldflags="-s -w")
@@ -502,7 +502,7 @@ EXAMPLES:
     $0 --go         # Build only Go server
     $0 --cpp-test   # Build C++ test executable
     $0 --test       # Run all Go tests
-    $0 --test -run TestFoo ./internal/admin/...      # Targeted Go tests
+    $0 --test -run TestFoo ./go/admin/...      # Targeted Go tests
     $0 --run        # Build and run
     $0 --clean      # Clean build artifacts
 
