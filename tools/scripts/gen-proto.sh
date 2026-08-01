@@ -34,17 +34,17 @@ if ! command -v protoc-gen-go-grpc &> /dev/null; then
 fi
 echo "✅ protoc-gen-go-grpc: $(which protoc-gen-go-grpc)"
 
-mkdir -p internal/common
+mkdir -p go/common
 
-protoc --go_out=internal/common \
-       --go-grpc_out=internal/common \
-       internal/proto/ingestion.proto
+protoc --go_out=go/common \
+       --go-grpc_out=go/common \
+       go/proto/ingestion.proto
 
 if [ $? -eq 0 ]; then
     echo "✅ Generation successful!"
     echo "Generated files:"
-    echo "  - internal/common/ingestion.pb.go"
-    echo "  - internal/common/ingestion_grpc.pb.go"
+    echo "  - go/common/ingestion.pb.go"
+    echo "  - go/common/ingestion_grpc.pb.go"
 else
     echo "❌ Generation failed!"
     exit 1

@@ -17,6 +17,7 @@ Use this file as the local operating guide for the current codebase. Prefer the 
 - Runtime services commonly include MySQL/PostgreSQL, Redis, MinIO, and Elasticsearch/Infinity/OpenSearch depending on configuration.
 
 ## Code Layout to Expect
+> Python 代码详细导航地图见 `docs/code-map/INDEX.md`(两层懒加载:先读索引,再按需打开 `python-*.md`)。
 - `api/`: Python API server entrypoints, blueprints, services, and database code.
 - `rag/`: ingestion, retrieval, LLM integration, and graph RAG logic.
 - `deepdoc/`: parsing and OCR.
