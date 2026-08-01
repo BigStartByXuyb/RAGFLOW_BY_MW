@@ -318,11 +318,11 @@ build_go() {
 
     echo "Building RAGFlow binary: $RAGFLOW_CLI_BINARY and $RAGFLOW_SERVER_BINARY"
     GOPROXY=${GOPROXY:-https://goproxy.cn,https://proxy.golang.org,direct}
-        go build "${strip_flags[@]}" -o "$RAGFLOW_CLI_BINARY" cmd/ragflow-cli.go
+        go build "${strip_flags[@]}" -o "$RAGFLOW_CLI_BINARY" go/cmd/ragflow-cli.go
 
     GOPROXY=${GOPROXY:-https://goproxy.cn,https://proxy.golang.org,direct} CGO_ENABLED=1 \
         CGO_CFLAGS="$CGO_CFLAGS" CGO_LDFLAGS="$CGO_LDFLAGS" \
-        go build "${strip_flags[@]}" -o "$RAGFLOW_SERVER_BINARY" cmd/ragflow_server.go
+        go build "${strip_flags[@]}" -o "$RAGFLOW_SERVER_BINARY" go/cmd/ragflow_server.go
 
 
     if [ ! -f "$RAGFLOW_SERVER_BINARY" ]; then

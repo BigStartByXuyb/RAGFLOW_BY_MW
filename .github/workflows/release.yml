@@ -114,7 +114,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       CLI_NAME: ragflow-cli
-      CLI_MAIN: ./cmd/ragflow-cli.go
+      CLI_MAIN: ./go/cmd/ragflow-cli.go
       DIST_DIR: dist/cli
       RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
 
