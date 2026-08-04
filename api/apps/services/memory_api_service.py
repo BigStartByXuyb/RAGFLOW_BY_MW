@@ -17,7 +17,6 @@ from api.apps import current_user
 from api.db import TenantPermission
 from api.db.services.memory_service import MemoryService
 from api.db.services.user_service import UserTenantService
-from api.db.services.canvas_service import UserCanvasService
 from api.db.services.task_service import TaskService
 from api.db.joint_services.memory_message_service import get_memory_size_cache, judge_system_prompt_is_default, queue_save_to_memory_task, query_message
 from api.utils.memory_utils import format_ret_data_from_memory, get_memory_type_human
@@ -287,8 +286,6 @@ async def get_memory_messages(memory_id, agent_ids: list[str], keywords: str, pa
     agent_name_mapping = {}
     extract_task_mapping = {}
     if messages["message_list"]:
-        agent_list = UserCanvasService.get_basic_info_by_canvas_ids([message["agent_id"] for message in messages["message_list"]])
-        agent_name_mapping = {agent["id"]: agent["title"] for agent in agent_list}
         task_list = TaskService.get_tasks_progress_by_doc_ids([memory_id])
         if task_list:
             task_list.sort(key=lambda t: t["create_time"])  # asc, use newer when exist more than one task

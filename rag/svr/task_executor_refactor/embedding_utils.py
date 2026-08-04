@@ -17,8 +17,7 @@
 Embedding Utils Module.
 
 Provides utility functions for vector embedding operations to avoid code duplication
-across different services (e.g., [`EmbeddingService`](rag/svr/task_executor_refactor/embedding_service.py),
-[`DataflowService`](rag/svr/task_executor_refactor/dataflow_service.py)).
+across different services (e.g., [`EmbeddingService`](rag/svr/task_executor_refactor/embedding_service.py)).
 
 This module centralizes:
 - Batch encoding of texts with truncation

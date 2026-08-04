@@ -22,8 +22,6 @@ can be driven from two places:
 
 * the chunking **task executor**, which streams a document's chunks out of
   the doc store (``run_document_structure_compile``), and
-* the ``rag.flow`` **Compiler** component, which receives chunks in-memory
-  from an upstream pipeline node.
 
 Only the non-``tree`` template kinds are handled here. ``tree`` templates run
 RAPTOR over the whole document and are still driven from the task executor
@@ -93,8 +91,7 @@ def resolve_template_ids_from_groups(group_ids, tenant_id: str) -> list[str]:
     from a list of template-*group* ids.
 
     Mirrors ``_parser_config_compilation_template_ids`` but takes the group
-    ids directly (the ``rag.flow`` Compiler carries them as a component
-    parameter rather than inside ``parser_config``).
+    ids directly.
     """
     if isinstance(group_ids, str):
         group_ids = [group_ids]

@@ -129,10 +129,7 @@ class TaskDict(TypedDict, total=False):
     """Ending page number for processing (-1 means all pages)."""
 
     task_type: str
-    """Task type (e.g., 'dataflow', 'raptor', 'graphrag', 'memory')."""
-
-    dataflow_id: str
-    """Dataflow/pipeline identifier."""
+    """Task type (e.g., 'raptor', 'graphrag', 'memory')."""
 
     pagerank: int
     """PageRank value for document scoring."""
@@ -239,7 +236,6 @@ class TaskContext:
         "from_page": 0,
         "to_page": -1,
         "task_type": "",
-        "dataflow_id": "",
         "pagerank": 0,
         "memory_id": "",
         "source_id": "",
@@ -404,13 +400,8 @@ class TaskContext:
 
     @property
     def task_type(self) -> str:
-        """Task type (e.g., 'dataflow', 'raptor', 'graphrag', 'memory')."""
+        """Task type (e.g., 'raptor', 'graphrag', 'memory')."""
         return self._task.get("task_type", self._DEFAULTS["task_type"])
-
-    @property
-    def dataflow_id(self) -> str:
-        """Dataflow/pipeline identifier."""
-        return self._task.get("dataflow_id", self._DEFAULTS["dataflow_id"])
 
     # =========================================================================
     # Additional properties
