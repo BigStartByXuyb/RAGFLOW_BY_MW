@@ -7,7 +7,6 @@ import {
 } from '@/components/ui/tooltip';
 import { useSetModalState } from '@/hooks/common-hooks';
 import { IRemoveMessageById } from '@/hooks/logic-hooks';
-import { AgentChatContext } from '@/pages/agent/context';
 import { downloadAgentFile } from '@/services/file-manager-service';
 import { downloadFileFromBlob } from '@/utils/file-util';
 import {
@@ -18,8 +17,8 @@ import {
   SoundOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import { Download, NotebookText } from 'lucide-react';
-import { useCallback, useContext } from 'react';
+import { Download } from 'lucide-react';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import FeedbackDialog from '../feedback-dialog';
 import { PromptDialog } from '../prompt-dialog';
@@ -67,11 +66,6 @@ export const AssistantGroupButton = ({
     onFeedbackOk({ thumbup: true });
   }, [onFeedbackOk]);
 
-  const { showLogSheet } = useContext(AgentChatContext);
-
-  const handleShowLogSheet = useCallback(() => {
-    showLogSheet(messageId);
-  }, [messageId, showLogSheet]);
 
   return (
     <>
@@ -114,18 +108,6 @@ export const AssistantGroupButton = ({
         {prompt && (
           <ToggleGroupItem value="e" onClick={showPromptModal}>
             <PromptIcon style={{ fontSize: '16px' }} />
-          </ToggleGroupItem>
-        )}
-        {showLog && (
-          <ToggleGroupItem value="f" onClick={handleShowLogSheet}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <NotebookText className="size-4" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{t('flow.log')}</TooltipContent>
-            </Tooltip>
           </ToggleGroupItem>
         )}
         {!!attachment?.doc_id && !isShare && (

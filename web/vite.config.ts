@@ -53,23 +53,24 @@ export default defineConfig(({ mode }) => {
     }
   }
   proxyScheme = proxyScheme || 'python';
+  const pythonApiOrigin = env.API_PROXY_ORIGIN || 'http://127.0.0.1:9380/';
 
   console.log(`[vite.config] mode: ${mode}, API_PROXY_SCHEME: ${proxyScheme}`);
 
   const proxySchemes = {
     python: {
       '/api/v1/admin': {
-        target: 'http://127.0.0.1:9381/',
+        target: env.ADMIN_PROXY_ORIGIN || 'http://127.0.0.1:9381/',
         changeOrigin: true,
         ws: true,
       },
       '/api': {
-        target: 'http://127.0.0.1:9380/',
+        target: pythonApiOrigin,
         changeOrigin: true,
         ws: true,
       },
       '/v1': {
-        target: 'http://127.0.0.1:9380/',
+        target: pythonApiOrigin,
         changeOrigin: true,
         ws: true,
       },

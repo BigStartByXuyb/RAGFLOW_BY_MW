@@ -35,7 +35,6 @@ export interface IDataset {
   parser_config: Parserconfig;
   parser_id?: string;
   permission: string;
-  pipeline_id: string;
   raptor_task_finish_at: string;
   raptor_task_id: string;
   similarity_threshold: number;

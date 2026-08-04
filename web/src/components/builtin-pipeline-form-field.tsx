@@ -6,7 +6,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useFetchBuiltinPipelines } from '@/hooks/use-agent-request';
 import { cn } from '@/lib/utils';
 import { useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -20,7 +19,10 @@ export function BuiltinPipelineItem({
 }) {
   const { t } = useTranslation();
   const form = useFormContext();
-  const { options: builtinPipelineOptions } = useFetchBuiltinPipelines();
+  const builtinPipelineOptions = [
+    'naive', 'book', 'email', 'laws', 'manual', 'one', 'paper',
+    'picture', 'presentation', 'qa', 'table', 'tag', 'resume',
+  ].map((value) => ({ label: value, value }));
 
   return (
     <FormField

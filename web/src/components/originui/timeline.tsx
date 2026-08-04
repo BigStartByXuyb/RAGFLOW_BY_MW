@@ -1,7 +1,6 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { TimelineNodeType } from '@/pages/dataflow-result/constant';
 import { parseColorToRGB } from '@/utils/common-util';
 import { Slot } from '@radix-ui/react-slot';
 import * as React from 'react';
@@ -228,7 +227,7 @@ interface TimelineNode
   clickable?: boolean;
   activeStyle?: TimelineIndicatorNodeProps;
   detail?: any;
-  type?: TimelineNodeType;
+  type?: string;
 }
 
 interface CustomTimelineProps extends React.HTMLAttributes<HTMLDivElement> {

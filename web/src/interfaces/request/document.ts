@@ -39,9 +39,6 @@ export interface IChangeParserConfigRequestBody {
 
 export interface IChangeParserRequestBody {
   parser_id: string;
-  pipeline_id?: string;
-  // 1 = BuiltIn (parser_id), 2 = Pipeline (pipeline_id); omitted = unspecified.
-  parseType?: number;
   doc_id?: string;
   parser_config: IChangeParserConfigRequestBody;
 }

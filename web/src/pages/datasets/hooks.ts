@@ -1,4 +1,3 @@
-import { ParseType } from '@/constants/knowledge';
 import { useSetModalState } from '@/hooks/common-hooks';
 import { useNavigatePage } from '@/hooks/logic-hooks/navigate-hooks';
 import { useCreateKnowledge } from '@/hooks/use-knowledge-request';
@@ -19,8 +18,6 @@ export interface Iknowledge {
   name: string;
   embedding_model?: string;
   chunk_method?: string;
-  parseType?: ParseType;
-  pipeline_id?: string | null;
   ext?: {
     language?: string;
     [key: string]: any;

@@ -61,7 +61,7 @@ export function ParseDropdownButton({
   record: IDocumentInfo;
 } & UseChangeDocumentParserShowType) {
   const { t } = useTranslation();
-  const { pipeline_id, pipeline_name, chunk_method } = record;
+  const { chunk_method } = record;
 
   const handleShowChangeParserModal = useCallback(() => {
     showChangeParserModal(record);
@@ -74,20 +74,12 @@ export function ParseDropdownButton({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="static" size="auto" className="capitalize">
-                {pipeline_id
-                  ? pipeline_name || pipeline_id
-                  : chunk_method === 'naive'
-                    ? 'general'
-                    : chunk_method}
+                {chunk_method === 'naive' ? 'general' : chunk_method}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
               <p className="capitalize">
-                {pipeline_id
-                  ? pipeline_name || pipeline_id
-                  : chunk_method === 'naive'
-                    ? 'general'
-                    : chunk_method}
+                {chunk_method === 'naive' ? 'general' : chunk_method}
               </p>
             </TooltipContent>
           </Tooltip>
@@ -95,7 +87,7 @@ export function ParseDropdownButton({
       </DropdownMenuTrigger>
       <DropdownMenuContent>
         <DropdownMenuItem onClick={handleShowChangeParserModal}>
-          {t('knowledgeDetails.dataPipeline')}
+          {t('knowledgeDetails.chunkMethod')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

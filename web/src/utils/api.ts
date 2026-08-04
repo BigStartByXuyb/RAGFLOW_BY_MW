@@ -217,7 +217,6 @@ export default {
     `${restAPIv1}/datasets/${datasetId}/index?type=${indexType.toLowerCase()}`,
   unbindPipelineTask: (datasetId: string, indexType: string, wipe?: boolean) =>
     `${restAPIv1}/datasets/${datasetId}/${indexType.toLowerCase()}${wipe === false ? '?wipe=false' : ''}`,
-  pipelineRerun: `${restAPIv1}/agents/rerun`,
   getMetaData: (datasetId: string) =>
     `${restAPIv1}/datasets/${datasetId}/metadata/summary`,
   updateDocumentsMetadata: (datasetId: string) =>
@@ -430,15 +429,6 @@ export default {
     `${restAPIv1}/messages/${data.memory_id}:${data.message_id}/content`,
   updateMessageState: (data: { memory_id: string; message_id: string }) =>
     `${restAPIv1}/messages/${data.memory_id}:${data.message_id}`,
-
-  // data pipeline
-  fetchDataflow: (id: string) => `${webAPI}/dataflow/get/${id}`,
-  setDataflow: `${webAPI}/dataflow/set`,
-  removeDataflow: `${webAPI}/dataflow/rm`,
-  listDataflow: `${webAPI}/dataflow/list`,
-  runDataflow: `${webAPI}/dataflow/run`,
-  listBuiltinPipelines: `${restAPIv1}/pipelines`,
-  getBuiltinPipeline: (id: string) => `${restAPIv1}/pipelines/${id}`,
 
   // admin
   adminLogin: `${restAPIv1}/admin/login`,

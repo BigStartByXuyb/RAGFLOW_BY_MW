@@ -139,9 +139,6 @@ async def create(tenant_id: str = None):
     req, err = await validate_and_parse_json_request(request, CreateDatasetReq)
     if err is not None:
         return get_error_argument_result(err)
-    if "pipeline_id" in req:
-        return get_error_argument_result('"pipeline_id" is no longer supported')
-
     try:
         if not tenant_id:
             tenant_id = current_user.id
@@ -290,9 +287,6 @@ async def update(tenant_id, dataset_id):
     req, err = await validate_and_parse_json_request(request, UpdateDatasetReq, extras=extras, exclude_unset=True)
     if err is not None:
         return get_error_argument_result(err)
-    if "pipeline_id" in req:
-        return get_error_argument_result('"pipeline_id" is no longer supported')
-
     try:
         success, result = await dataset_api_service.update_dataset(tenant_id, dataset_id, req)
         if success:
