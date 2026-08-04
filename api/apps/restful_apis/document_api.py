@@ -229,8 +229,6 @@ async def update_document(tenant_id, dataset_id, document_id):
         update_doc_req = UpdateDocumentReq(**req)
     except ValidationError as e:
         return get_error_data_result(message=format_validation_error_message(e), code=RetCode.DATA_ERROR)
-    if "pipeline_id" in req:
-        return get_error_data_result(message='"pipeline_id" is no longer supported', code=RetCode.ARGUMENT_ERROR)
 
     doc = docs[0]
 

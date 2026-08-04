@@ -46,6 +46,11 @@ def test_rest_api_page_size_rejects_values_above_100():
         ListFileReq(page_size=REST_API_MAX_PAGE_SIZE + 1)
 
 
+def test_update_document_req_rejects_pipeline_id():
+    with pytest.raises(ValidationError, match="pipeline_id"):
+        UpdateDocumentReq(pipeline_id="removed-pipeline")
+
+
 def test_validate_immutable_fields_no_changes():
     """Test when no immutable fields are present in request."""
     update_doc_req = UpdateDocumentReq()

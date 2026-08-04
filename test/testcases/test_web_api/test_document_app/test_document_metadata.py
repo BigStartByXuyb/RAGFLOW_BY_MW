@@ -190,7 +190,7 @@ class TestDocumentMetadata:
         """A document update cannot select a user-configurable pipeline."""
         dataset_id, doc_id = add_document_func
         res = document_update(WebApiAuth, dataset_id, doc_id, {"pipeline_id": "general"})
-        assert res["code"] == 101, res
+        assert res["code"] == 102, res
         assert "pipeline_id" in res["message"]
 
 
