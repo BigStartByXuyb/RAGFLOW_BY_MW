@@ -488,11 +488,28 @@ def test_create_route_error_matrix_unit(monkeypatch):
 def test_create_dataset_does_not_require_pipeline_id(monkeypatch):
     module = _load_dataset_module(monkeypatch)
     monkeypatch.setattr(module, "validate_and_parse_json_request", _payload({"name": "kb", "parser_id": "naive"}))
+    create_payloads = []
+    save_payloads = []
+    create_with_name = module.KnowledgebaseService.create_with_name
+    save = module.KnowledgebaseService.save
+
+    def _record_create_with_name(**kwargs):
+        create_payloads.append(deepcopy(kwargs))
+        return create_with_name(**kwargs)
+
+    def _record_save(**kwargs):
+        save_payloads.append(deepcopy(kwargs))
+        return save(**kwargs)
+
+    monkeypatch.setattr(module.KnowledgebaseService, "create_with_name", _record_create_with_name)
+    monkeypatch.setattr(module.KnowledgebaseService, "save", _record_save)
 
     result = _run(inspect.unwrap(module.create)("tenant-1"))
 
     assert result["code"] == 0
-    assert "pipeline_id" not in result["data"]
+    assert create_payloads == [{"name": "kb", "tenant_id": "tenant-1", "parser_id": "naive"}]
+    assert len(save_payloads) == 1
+    assert "pipeline_id" not in save_payloads[0]
 
 
 @pytest.mark.p3
