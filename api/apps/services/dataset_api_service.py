@@ -95,6 +95,9 @@ async def create_dataset(tenant_id: str, req: dict):
     :param req: dataset creation request
     :return: (success, result) or (success, error_message)
     """
+    if "pipeline_id" in req:
+        return False, '"pipeline_id" is no longer supported'
+
     # Extract ext field for additional parameters
     ext_fields = req.pop("ext", {})
 
@@ -140,6 +143,7 @@ async def create_dataset(tenant_id: str, req: dict):
     if not ok:
         return False, "Dataset created failed"
     response_data = remap_dictionary_keys(k.to_dict())
+    response_data.pop("pipeline_id", None)
     return True, response_data
 
 
@@ -239,6 +243,7 @@ def get_dataset(dataset_id: str, tenant_id: str):
         return False, "Invalid Dataset ID"
 
     response_data = remap_dictionary_keys(kb.to_dict())
+    response_data.pop("pipeline_id", None)
     response_data["size"] = DocumentService.get_total_size_by_kb_id(dataset_id)
     response_data["connectors"] = list(Connector2KbService.list_connectors(dataset_id))
     return True, response_data
@@ -282,6 +287,9 @@ async def update_dataset(tenant_id: str, dataset_id: str, req: dict):
     """
     if not req:
         return False, "no properties were modified"
+
+    if "pipeline_id" in req:
+        return False, '"pipeline_id" is no longer supported'
 
     kb = KnowledgebaseService.get_or_none(id=dataset_id, tenant_id=tenant_id)
     if kb is None:
@@ -340,10 +348,6 @@ async def update_dataset(tenant_id: str, dataset_id: str, req: dict):
     elif "parser_config" in req and not req["parser_config"]:
         del req["parser_config"]
 
-    if kb.pipeline_id and req.get("parser_id") and not req.get("pipeline_id"):
-        # shift to use parser_id, delete old pipeline_id
-        req["pipeline_id"] = ""
-
     if "name" in req and req["name"].lower() != kb.name.lower():
         exists = KnowledgebaseService.get_or_none(name=req["name"], tenant_id=tenant_id, status=StatusEnum.VALID.value)
         if exists:
@@ -390,6 +394,7 @@ async def update_dataset(tenant_id: str, dataset_id: str, req: dict):
         logging.error("Link KB errors: %s", errors)
 
     response_data = remap_dictionary_keys(k.to_dict())
+    response_data.pop("pipeline_id", None)
     response_data["connectors"] = connectors
     return True, response_data
 
@@ -460,7 +465,9 @@ def list_datasets(tenant_id: str, args: dict):
         kb.update({"nickname": user_dict.get("nickname", ""), "tenant_avatar": user_dict.get("avatar", "")})
         if status_by_kb:
             kb["parsing_status"] = status_by_kb.get(kb["id"], {})
-        response_data_list.append(remap_dictionary_keys(kb))
+        response_data = remap_dictionary_keys(kb)
+        response_data.pop("pipeline_id", None)
+        response_data_list.append(response_data)
     return True, {"data": response_data_list, "total": total}
 
 
@@ -765,103 +772,6 @@ def delete_tags(dataset_id: str, tenant_id: str, tags: list[str]):
         settings.docStoreConn.update({"tag_kwd": t, "kb_id": [dataset_id]}, {"remove": {"tag_kwd": t}}, search.index_name(kb.tenant_id), dataset_id)
 
     return True, {}
-
-
-def list_ingestion_logs(
-    dataset_id: str,
-    tenant_id: str,
-    page: int,
-    page_size: int,
-    orderby: str,
-    desc: bool,
-    operation_status: list = None,
-    create_date_from: str = None,
-    create_date_to: str = None,
-    log_type: str = "dataset",
-    keywords: str = None,
-):
-    """
-    List ingestion logs for a dataset.
-
-    :param dataset_id: dataset ID
-    :param tenant_id: tenant ID
-    :param page: page number
-    :param page_size: items per page
-    :param orderby: order by field
-    :param desc: descending order
-    :param operation_status: filter by operation status
-    :param create_date_from: filter start date
-    :param create_date_to: filter end date
-    :param log_type: "dataset" or "file"
-    :param keywords: search keywords for file logs
-    :return: (success, result) or (success, error_message)
-    """
-    if not dataset_id:
-        return False, 'Lack of "Dataset ID"'
-
-    if not KnowledgebaseService.accessible(dataset_id, tenant_id):
-        return False, "no authorization"
-
-    from api.db.services.pipeline_operation_log_service import PipelineOperationLogService
-
-    allowed_log_types = {"dataset", "file"}
-    if log_type not in allowed_log_types:
-        logging.warning(
-            "list_ingestion_logs invalid log_type: dataset_id=%s tenant_id=%s log_type=%s",
-            dataset_id,
-            tenant_id,
-            log_type,
-        )
-        return False, 'Invalid "log_type", expected "dataset" or "file"'
-
-    logging.info(
-        "list_ingestion_logs: dataset_id=%s tenant_id=%s log_type=%s page=%s page_size=%s",
-        dataset_id,
-        tenant_id,
-        log_type,
-        page,
-        page_size,
-    )
-
-    if log_type == "file":
-        logs, total = PipelineOperationLogService.get_file_logs_by_kb_id(dataset_id, page, page_size, orderby, desc, keywords, operation_status or [], None, None, create_date_from, create_date_to)
-    else:
-        logs, total = PipelineOperationLogService.get_dataset_logs_by_kb_id(dataset_id, page, page_size, orderby, desc, operation_status or [], create_date_from, create_date_to, keywords)
-    return True, {"total": total, "logs": logs}
-
-
-def get_ingestion_log(dataset_id: str, tenant_id: str, log_id: str):
-    """
-    Get a single ingestion log.
-
-    :param dataset_id: dataset ID
-    :param tenant_id: tenant ID
-    :param log_id: log ID
-    :return: (success, result) or (success, error_message)
-    """
-    if not dataset_id:
-        return False, 'Lack of "Dataset ID"'
-
-    if not KnowledgebaseService.accessible(dataset_id, tenant_id):
-        return False, "no authorization"
-
-    from api.db.services.pipeline_operation_log_service import PipelineOperationLogService
-
-    # Return the full record (including `dsl`) so the front-end dataflow-result
-    # page can render the pipeline timeline and chunks. The file-level field set
-    # is a superset of the dataset-level fields, so it is valid for both
-    # dataset-level (graph/raptor/mindmap) and per-file logs.
-    fields = PipelineOperationLogService.get_file_logs_fields()
-    log = PipelineOperationLogService.model.select(*fields).where((PipelineOperationLogService.model.id == log_id) & (PipelineOperationLogService.model.kb_id == dataset_id)).first()
-    if not log:
-        return False, "Log not found"
-
-    result = log.to_dict()
-    # Be explicit here: the dataflow-result page needs the full DSL payload to
-    # rebuild the timeline and right-side parser view. Some serialization paths
-    # can omit JSON fields from Peewee model dicts, so keep it attached here.
-    result["dsl"] = log.dsl or {}
-    return True, result
 
 
 def delete_index(dataset_id: str, tenant_id: str, index_type: str, wipe: bool = True):
@@ -1561,76 +1471,12 @@ def _compilation_template_kind(kind) -> str:
     return normalized
 
 
-def _normalize_compilation_template_group_ids(raw) -> list[str]:
-    if isinstance(raw, str):
-        raw = [raw]
-    if not isinstance(raw, list):
-        return []
-    ids: list[str] = []
-    seen: set[str] = set()
-    for group_id in raw:
-        if not isinstance(group_id, str):
-            continue
-        group_id = group_id.strip()
-        if group_id and group_id not in seen:
-            seen.add(group_id)
-            ids.append(group_id)
-    return ids
-
-
-def _extract_pipeline_compiler_group_ids(dsl) -> list[str]:
-    if isinstance(dsl, str):
-        try:
-            dsl = json.loads(dsl)
-        except Exception:
-            return []
-    if not isinstance(dsl, dict):
-        return []
-    components = dsl.get("components")
-    if not isinstance(components, dict):
-        return []
-
-    group_ids: list[str] = []
-    seen: set[str] = set()
-    for component in components.values():
-        if not isinstance(component, dict):
-            continue
-        obj = component.get("obj") if isinstance(component.get("obj"), dict) else {}
-        component_name = obj.get("component_name") or component.get("component_name") or component.get("name")
-        if not isinstance(component_name, str) or component_name.lower() != "compiler":
-            continue
-        candidates = [
-            obj.get("params") if isinstance(obj.get("params"), dict) else {},
-            obj,
-            component.get("params") if isinstance(component.get("params"), dict) else {},
-            component,
-        ]
-        for candidate in candidates:
-            for key in ("compilation_template_group_ids", "compilation_template_group_id"):
-                for group_id in _normalize_compilation_template_group_ids(candidate.get(key)):
-                    if group_id not in seen:
-                        seen.add(group_id)
-                        group_ids.append(group_id)
-    return group_ids
-
-
 def _template_is_wiki(template: dict | None) -> bool:
     if not isinstance(template, dict):
         return False
     config = template.get("config") if isinstance(template.get("config"), dict) else {}
     raw_kind = config.get("kind") or template.get("kind") or ""
     return _compilation_template_kind(raw_kind) == "artifacts"
-
-
-def _group_has_wiki_template(group_id: str, tenant_id: str, group_cache: dict[str, bool]) -> bool:
-    if group_id in group_cache:
-        return group_cache[group_id]
-    from api.db.services.compilation_template_group_service import CompilationTemplateGroupService
-
-    group = CompilationTemplateGroupService.get_saved(group_id, tenant_id)
-    has_wiki = any(_template_is_wiki(template) for template in (group or {}).get("templates") or [])
-    group_cache[group_id] = has_wiki
-    return has_wiki
 
 
 def _parser_config_has_wiki_template(parser_config, tenant_id: str, template_cache: dict[str, bool]) -> bool:
@@ -1643,31 +1489,6 @@ def _parser_config_has_wiki_template(parser_config, tenant_id: str, template_cac
         if template_cache[template_id]:
             return True
     return False
-
-
-def _pipeline_has_wiki_compiler(
-    pipeline_id: str,
-    tenant_id: str,
-    pipeline_cache: dict[str, bool],
-    group_cache: dict[str, bool],
-) -> bool:
-    pipeline_id = (pipeline_id or "").strip()
-    if not pipeline_id:
-        return False
-    if pipeline_id in pipeline_cache:
-        return pipeline_cache[pipeline_id]
-
-    from api.db.services.canvas_service import UserCanvasService
-
-    ok, canvas = UserCanvasService.get_by_id(pipeline_id)
-    if not ok or not canvas:
-        pipeline_cache[pipeline_id] = False
-        return False
-
-    group_ids = _extract_pipeline_compiler_group_ids(getattr(canvas, "dsl", None))
-    has_wiki = any(_group_has_wiki_template(group_id, tenant_id, group_cache) for group_id in group_ids)
-    pipeline_cache[pipeline_id] = has_wiki
-    return has_wiki
 
 
 def _skill_index_or_none(tenant_id: str, kb_id: str):
@@ -2078,8 +1899,6 @@ async def get_wiki_alteration(dataset_id: str, tenant_id: str):
                 break
 
     template_cache: dict[str, bool] = {}
-    group_cache: dict[str, bool] = {}
-    pipeline_cache: dict[str, bool] = {}
     eligible_wiki_doc_ids: set[str] = set()
     for doc in docs or []:
         doc_id = str(doc.get("id") or "")
@@ -2087,14 +1906,6 @@ async def get_wiki_alteration(dataset_id: str, tenant_id: str):
             continue
         parser_config = doc.get("parser_config") or {}
         if _parser_config_has_wiki_template(parser_config, kb.tenant_id, template_cache):
-            eligible_wiki_doc_ids.add(doc_id)
-            continue
-        if _pipeline_has_wiki_compiler(
-            doc.get("pipeline_id") or "",
-            kb.tenant_id,
-            pipeline_cache,
-            group_cache,
-        ):
             eligible_wiki_doc_ids.add(doc_id)
 
     removed_doc_ids = sorted(wiki_involved_doc_ids - current_doc_ids)
