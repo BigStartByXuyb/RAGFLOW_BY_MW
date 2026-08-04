@@ -2,6 +2,8 @@
 
 **Owner:** current `/root` session only. Other sessions do not need to read or execute this task record.
 
+> **Branch-only handoff artifact:** Keep this task record, the matching design, and the implementation plan committed on `codex/python-dataflow-canvas-removal` so another machine can resume the work. Exclude these `docs/superpowers/**` handoff files from the final commit(s) merged to the main branch.
+
 ## Objective
 
 Remove the Python and frontend product surfaces for user-configurable DataFlow pipelines and drag-and-drop canvas agents, while retaining the fixed RAG document-processing flow, standard chat, knowledge-base question answering, and knowledge-base APIs.
