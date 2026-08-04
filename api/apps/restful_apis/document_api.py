@@ -34,7 +34,6 @@ from api.apps.services.document_api_service import (
     update_document_name_only,
     update_chunk_method,
     update_document_status_only,
-    reset_document_for_reparse,
 )
 from api.db import VALID_FILE_TYPES, FileType
 from api.db.db_models import API4Conversation, DB
@@ -230,6 +229,8 @@ async def update_document(tenant_id, dataset_id, document_id):
         update_doc_req = UpdateDocumentReq(**req)
     except ValidationError as e:
         return get_error_data_result(message=format_validation_error_message(e), code=RetCode.DATA_ERROR)
+    if "pipeline_id" in req:
+        return get_error_data_result(message='"pipeline_id" is no longer supported', code=RetCode.ARGUMENT_ERROR)
 
     doc = docs[0]
 
@@ -260,13 +261,8 @@ async def update_document(tenant_id, dataset_id, document_id):
         _normalize_parser_config_compilation_template_group_ids(req["parser_config"])
         DocumentService.update_parser_config(doc.id, req["parser_config"])
 
-    # A non-empty pipeline_id selects pipeline parsing; an explicitly empty
-    # value clears it and switches back to the direct parser path.
-    if "pipeline_id" in req:
-        if error := reset_document_for_reparse(doc, tenant_id, pipeline_id=update_doc_req.pipeline_id or ""):
-            return error
-    # chunk method provided - the update method will check if it's different with existing one
-    elif update_doc_req.chunk_method:
+    # Chunk method provided - the update method will check if it differs from the existing one.
+    if update_doc_req.chunk_method:
         if error := update_chunk_method(req, doc, tenant_id):
             return error
 
@@ -543,7 +539,6 @@ async def _upload_web_document(dataset_id, kb, tenant_id):
             "id": get_uuid(),
             "kb_id": kb.id,
             "parser_id": kb.parser_id,
-            "pipeline_id": kb.pipeline_id,
             "parser_config": kb.parser_config,
             "created_by": tenant_id,
             "type": filetype,
@@ -596,7 +591,6 @@ async def _upload_empty_document(dataset_id, kb, tenant_id):
                 "id": get_uuid(),
                 "kb_id": kb.id,
                 "parser_id": kb.parser_id,
-                "pipeline_id": kb.pipeline_id,
                 "parser_config": kb.parser_config,
                 "created_by": tenant_id,
                 "type": FileType.VIRTUAL,

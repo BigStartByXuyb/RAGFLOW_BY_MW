@@ -323,3 +323,4 @@ def test_convert_files_renames_duplicate_document_name_unit(monkeypatch):
     assert inserted_docs[0]["name"] == "file(1).txt"
     assert inserted_docs[0]["suffix"] == "txt"
     assert inserted_docs[0]["location"] == "loc"
+    assert "pipeline_id" not in inserted_docs[0]

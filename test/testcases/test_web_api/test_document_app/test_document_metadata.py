@@ -186,25 +186,12 @@ class TestDocumentMetadata:
         assert res["data"]["docs"][0]["chunk_method"] == new_parser_id, res
 
     @pytest.mark.p2
-    def test_update_document_change_pipeline(self, WebApiAuth, add_document_func):
-        """Test updating document pipeline via PATCH /api/v1/datasets/<dataset_id>/documents/<doc_id>."""
+    def test_update_document_rejects_pipeline_id(self, WebApiAuth, add_document_func):
+        """A document update cannot select a user-configurable pipeline."""
         dataset_id, doc_id = add_document_func
-
-        # Get initial document info
-        res = document_infos(WebApiAuth, dataset_id, {"doc_ids": [doc_id]})
-        assert res["code"] == 0, res
-        original_pipeline_id = res["data"]["docs"][0].get("pipeline_id")
-
-        # Change to a different pipeline (if available)
-        # Note: This test assumes there's at least one other pipeline available
-        new_pipeline_id = "general" if original_pipeline_id != "general" else "resume"
-        res = document_update(WebApiAuth, dataset_id, doc_id, {"pipeline_id": new_pipeline_id})
-        assert res["code"] == 0, res
-
-        # Verify the document was updated
-        res = document_infos(WebApiAuth, dataset_id, {"doc_ids": [doc_id]})
-        assert res["code"] == 0, res
-        assert res["data"]["docs"][0]["pipeline_id"] == new_pipeline_id, res
+        res = document_update(WebApiAuth, dataset_id, doc_id, {"pipeline_id": "general"})
+        assert res["code"] == 101, res
+        assert "pipeline_id" in res["message"]
 
 
 class TestDocumentMetadataNegative:
