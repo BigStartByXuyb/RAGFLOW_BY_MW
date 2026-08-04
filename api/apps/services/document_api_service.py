@@ -80,13 +80,7 @@ def update_chunk_method(req, doc, tenant_id):
     """
     if doc.parser_id.lower() != req["chunk_method"].lower():
         # if chunk method changed, reset document for reparse
-        result = reset_document_for_reparse(doc, tenant_id, parser_id=req["chunk_method"], pipeline_id="")
-        if result:
-            return result
-    elif doc.pipeline_id:
-        # An explicit chunk method selects the direct parser path. Clear the
-        # previous pipeline even when the parser method itself is unchanged.
-        result = reset_document_for_reparse(doc, tenant_id, pipeline_id="")
+        result = reset_document_for_reparse(doc, tenant_id, parser_id=req["chunk_method"])
         if result:
             return result
     if not req.get("parser_config"):
@@ -95,18 +89,17 @@ def update_chunk_method(req, doc, tenant_id):
     return None
 
 
-def reset_document_for_reparse(doc, tenant_id, parser_id=None, pipeline_id=None):
+def reset_document_for_reparse(doc, tenant_id, parser_id=None):
     """
     Reset document for reparsing.
 
-    Updates the parser_id and/or pipeline_id for a document, resets its progress,
-    clears existing chunks from the document store, and removes chunk images.
+    Updates a document parser, resets its progress, clears existing chunks from
+    the document store, and removes chunk images.
 
     Args:
         doc: The document model from the database.
         tenant_id: The tenant ID for the document store.
         parser_id: Optional new parser_id (chunk method). If None, keeps existing.
-        pipeline_id: Optional new pipeline_id. If None, keeps existing.
 
     Returns:
         None if successful, or an error result dictionary if failed.
@@ -120,9 +113,6 @@ def reset_document_for_reparse(doc, tenant_id, parser_id=None, pipeline_id=None)
     }
     if parser_id is not None:
         update_fields["parser_id"] = parser_id
-    if pipeline_id is not None:
-        update_fields["pipeline_id"] = pipeline_id
-
     # Update document
     e = DocumentService.update_by_id(doc.id, update_fields)
     if not e:

@@ -755,26 +755,6 @@ class RAGFlowClient:
         else:
             print(f"Fail to get all datasets of {user_name}, code: {response.status_code}, body: {response.text}")
 
-    def handle_list_agents(self, command):
-        if self.server_type != "admin":
-            print("This command is only allowed in ADMIN mode")
-
-        username_tree: Tree = command["user_name"]
-        user_name: str = username_tree.children[0].strip("'\"")
-        print(f"Listing all agents of user: {user_name}")
-        response = self.http_client.request("GET", f"/admin/users/{user_name}/agents", use_api_base=True, auth_kind="admin")
-        if response.status_code == 200:
-            res_json = response.json()
-            if res_json["code"] == 0:
-                table_data = res_json["data"]
-                for t in table_data:
-                    t.pop("avatar")
-                self._print_table_simple(table_data)
-            else:
-                print(f"Fail to get all agents of {user_name}, code: {res_json['code']}, message: {res_json['message']}")
-        else:
-            print(f"Fail to get all agents of {user_name}, code: {response.status_code}, body: {response.text}")
-
     def show_current_user(self, command):
         if self.server_type != "user":
             print("This command is only allowed in USER mode")
@@ -1114,20 +1094,6 @@ class RAGFlowClient:
                 print(f"Fail to get metadata summary, code: {res_json.get('code')}, message: {res_json.get('message')}")
         else:
             print(f"Fail to get metadata summary, code: {response.status_code}, body: {response.text}")
-
-    def list_user_agents(self, command):
-        if self.server_type != "user":
-            print("This command is only allowed in USER mode")
-
-        response = self.http_client.request("GET", "/canvas/list", use_api_base=False, auth_kind="web")
-        if response.status_code == 200:
-            res_json = response.json()
-            if res_json["code"] == 0:
-                self._print_table_simple(res_json["data"])
-            else:
-                print(f"Fail to list datasets, code: {res_json['code']}, message: {res_json['message']}")
-        else:
-            print(f"Fail to list datasets, code: {response.status_code}, body: {response.text}")
 
     def list_user_chats(self, command):
         if self.server_type != "user":
@@ -2106,8 +2072,6 @@ def run_command(client: RAGFlowClient, command_dict: dict):
             client.activate_user(command_dict)
         case "list_datasets":
             client.handle_list_datasets(command_dict)
-        case "list_agents":
-            client.handle_list_agents(command_dict)
         case "create_role":
             client.create_role(command_dict)
         case "drop_role":
@@ -2184,8 +2148,6 @@ def run_command(client: RAGFlowClient, command_dict: dict):
             return client.list_user_datasets_metadata(command_dict)
         case "list_user_documents_metadata_summary":
             return client.list_user_documents_metadata_summary(command_dict)
-        case "list_user_agents":
-            return client.list_user_agents(command_dict)
         case "list_user_chats":
             return client.list_user_chats(command_dict)
         case "create_user_chat":
@@ -2270,7 +2232,6 @@ CREATE USER <user> <password>
 ALTER USER PASSWORD <user> <new_password>
 ALTER USER ACTIVE <user> <on/off>
 LIST DATASETS OF <user>
-LIST AGENTS OF <user>
 CREATE ROLE <role>
 DROP ROLE <role>
 ALTER ROLE <role> SET DESCRIPTION <description>

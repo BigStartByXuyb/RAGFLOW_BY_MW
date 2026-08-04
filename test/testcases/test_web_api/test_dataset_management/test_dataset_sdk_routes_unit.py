@@ -80,6 +80,7 @@ class _KB:
         pagerank=0,
         graphrag_task_id="",
         raptor_task_id="",
+        pipeline_id="pipeline-1",
     ):
         self.id = kb_id
         self.name = name
@@ -91,6 +92,7 @@ class _KB:
         self.pagerank = pagerank
         self.graphrag_task_id = graphrag_task_id
         self.raptor_task_id = raptor_task_id
+        self.pipeline_id = pipeline_id
 
     def to_dict(self):
         return {
@@ -101,6 +103,7 @@ class _KB:
             "parser_config": deepcopy(self.parser_config),
             "embd_id": self.embd_id,
             "pagerank": self.pagerank,
+            "pipeline_id": self.pipeline_id,
         }
 
 
@@ -127,6 +130,13 @@ def _patch_json_parser(monkeypatch, module, payload_state, err_state=None):
         return deepcopy(payload_state), err_state
 
     monkeypatch.setattr(module, "validate_and_parse_json_request", _parse_json)
+
+
+def _payload(payload):
+    async def _parse_json(*_args, **_kwargs):
+        return deepcopy(payload), None
+
+    return _parse_json
 
 
 def _load_dataset_module(monkeypatch):
@@ -393,6 +403,7 @@ def _load_dataset_module(monkeypatch):
     api_utils_mod.get_error_argument_result = _get_error_argument_result
     api_utils_mod.get_error_data_result = _get_error_data_result
     api_utils_mod.get_error_permission_result = _get_error_permission_result
+    api_utils_mod.get_json_result = _get_result
     api_utils_mod.get_parser_config = lambda _chunk_method, _unused: {"auto": True}
     api_utils_mod.get_result = _get_result
     api_utils_mod.remap_dictionary_keys = lambda data: data
@@ -475,6 +486,65 @@ def test_create_route_error_matrix_unit(monkeypatch):
     monkeypatch.setattr(module.KnowledgebaseService, "save", lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("save boom")))
     res = _run(inspect.unwrap(module.create)("tenant-1"))
     assert res["message"] == "Internal server error", res
+
+
+@pytest.mark.p3
+def test_create_dataset_does_not_require_pipeline_id(monkeypatch):
+    module = _load_dataset_module(monkeypatch)
+    monkeypatch.setattr(module, "validate_and_parse_json_request", _payload({"name": "kb", "parser_id": "naive"}))
+    create_payloads = []
+    save_payloads = []
+    create_with_name = module.KnowledgebaseService.create_with_name
+    save = module.KnowledgebaseService.save
+
+    def _record_create_with_name(**kwargs):
+        create_payloads.append(deepcopy(kwargs))
+        return create_with_name(**kwargs)
+
+    def _record_save(**kwargs):
+        save_payloads.append(deepcopy(kwargs))
+        return save(**kwargs)
+
+    monkeypatch.setattr(module.KnowledgebaseService, "create_with_name", _record_create_with_name)
+    monkeypatch.setattr(module.KnowledgebaseService, "save", _record_save)
+
+    result = _run(inspect.unwrap(module.create)("tenant-1"))
+
+    assert result["code"] == 0
+    assert "pipeline_id" not in result["data"]
+    assert create_payloads == [{"name": "kb", "tenant_id": "tenant-1", "parser_id": "naive"}]
+    assert len(save_payloads) == 1
+    assert "pipeline_id" not in save_payloads[0]
+
+
+@pytest.mark.p3
+def test_create_dataset_rejects_pipeline_id(monkeypatch):
+    module = _load_dataset_module(monkeypatch)
+    monkeypatch.setattr(
+        module,
+        "validate_and_parse_json_request",
+        _payload({"name": "kb", "parser_id": "naive", "pipeline_id": "pipeline-1"}),
+    )
+    created = []
+    monkeypatch.setattr(
+        module.KnowledgebaseService,
+        "create_with_name",
+        lambda **kwargs: created.append(kwargs) or (True, {"id": "kb-1"}),
+    )
+
+    result = _run(inspect.unwrap(module.create)("tenant-1"))
+
+    assert result["code"] == module.RetCode.ARGUMENT_ERROR
+    assert "pipeline_id" in result["message"]
+    assert created == []
+
+
+@pytest.mark.p3
+def test_standard_chat_module_imports_without_agent_api(monkeypatch):
+    sys.modules.pop("api.apps.restful_apis.agent_api", None)
+    module = importlib.import_module("api.apps.restful_apis.chat_api")
+
+    assert callable(module.session_completion)
 
 
 @pytest.mark.p3

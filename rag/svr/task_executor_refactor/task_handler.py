@@ -52,9 +52,7 @@ from common.exceptions import TaskCanceledException
 from common.connection_utils import timeout
 from common.misc_utils import thread_pool_exec
 from rag.nlp import search
-from rag.svr.task_executor_refactor.constants import CANVAS_DEBUG_DOC_ID
 from rag.svr.task_executor_refactor.chunk_service import ChunkService
-from rag.svr.task_executor_refactor.dataflow_service import BillingHook, DataflowService
 from rag.svr.task_executor_refactor.embedding_service import EmbeddingService
 from rag.svr.task_executor_refactor.post_processor import PostProcessor
 from rag.svr.task_executor_refactor.raptor_service import RaptorService
@@ -128,7 +126,7 @@ class TaskHandler:
     """Main task handler for document processing.
 
     This class orchestrates the entire document processing pipeline:
-    1. Task type detection (memory, dataflow, raptor, graphrag, standard)
+    1. Task type detection (memory, raptor, graphrag, standard)
     2. Model binding (embedding, chat)
     3. Chunk building or RAPTOR/GraphRAG execution
     4. Embedding
@@ -141,16 +139,13 @@ class TaskHandler:
     def __init__(
         self,
         ctx: TaskContext,
-        billing_hook: Optional[BillingHook] = None,
     ):
         """Initialize TaskHandler.
 
         Args:
             ctx: TaskContext containing task configuration and execution resources.
-            billing_hook: Optional billing hook for pipeline success/error callbacks.
         """
         self._task_context = ctx
-        self._billing_hook = billing_hook
 
     @staticmethod
     def _is_standard_chunking_task(task_type: str) -> bool:
@@ -169,7 +164,7 @@ class TaskHandler:
             "evaluation",
             "reembedding",
             "clone",
-        } | STRUCTURE_MERGE_TASK_TYPES and not task_type.startswith("dataflow")
+        } | STRUCTURE_MERGE_TASK_TYPES
 
     async def handle_task(self) -> None:
         try:
@@ -235,15 +230,6 @@ class TaskHandler:
         with embedding_model:
             self._init_kb(vector_size)
 
-            # Handle dataflow tasks (after init_kb, matching original behavior)
-            if task_type == "dataflow" and ctx.doc_id == CANVAS_DEBUG_DOC_ID:
-                await self._run_dataflow()
-                return
-
-            if task_type.startswith("dataflow"):
-                await self._run_dataflow()
-                return
-
             # Route to appropriate handler
             from rag.svr.task_executor_refactor.dataset_structure_merger import (
                 is_structure_merge_task,
@@ -297,14 +283,6 @@ class TaskHandler:
         parser_id = ctx.parser_id
         # Create index if not exists
         settings.docStoreConn.create_idx(idxnm, ctx.kb_id, vector_size, parser_id)
-
-    async def _run_dataflow(self) -> None:
-        """Run dataflow pipeline."""
-        dataflow_service = DataflowService(
-            ctx=self._task_context,
-            billing_hook=self._billing_hook,
-        )
-        await dataflow_service.run_dataflow()
 
     async def _run_evaluation(self) -> None:
         """Run evaluation task."""

@@ -186,25 +186,12 @@ class TestDocumentMetadata:
         assert res["data"]["docs"][0]["chunk_method"] == new_parser_id, res
 
     @pytest.mark.p2
-    def test_update_document_change_pipeline(self, WebApiAuth, add_document_func):
-        """Test updating document pipeline via PATCH /api/v1/datasets/<dataset_id>/documents/<doc_id>."""
+    def test_update_document_rejects_pipeline_id(self, WebApiAuth, add_document_func):
+        """A document update cannot select a user-configurable pipeline."""
         dataset_id, doc_id = add_document_func
-
-        # Get initial document info
-        res = document_infos(WebApiAuth, dataset_id, {"doc_ids": [doc_id]})
-        assert res["code"] == 0, res
-        original_pipeline_id = res["data"]["docs"][0].get("pipeline_id")
-
-        # Change to a different pipeline (if available)
-        # Note: This test assumes there's at least one other pipeline available
-        new_pipeline_id = "general" if original_pipeline_id != "general" else "resume"
-        res = document_update(WebApiAuth, dataset_id, doc_id, {"pipeline_id": new_pipeline_id})
-        assert res["code"] == 0, res
-
-        # Verify the document was updated
-        res = document_infos(WebApiAuth, dataset_id, {"doc_ids": [doc_id]})
-        assert res["code"] == 0, res
-        assert res["data"]["docs"][0]["pipeline_id"] == new_pipeline_id, res
+        res = document_update(WebApiAuth, dataset_id, doc_id, {"pipeline_id": "general"})
+        assert res["code"] == 102, res
+        assert "pipeline_id" in res["message"]
 
 
 class TestDocumentMetadataNegative:
@@ -631,78 +618,6 @@ class TestDocumentMetadataUnit:
         res = _run(module.get_document_image("only-one-part"))
         assert res["code"] == RetCode.DATA_ERROR
         assert "Image not found" in res["message"]
-
-    @pytest.mark.p2
-    def test_get_artifact_denied_without_session_reference_unit(self, document_app_module, monkeypatch):
-        module = document_app_module
-        filename = "a1b2c3d4e5f6789012345678901234abcd.png"
-
-        monkeypatch.setattr(module, "_sandbox_artifact_dialog_ids_for_user", lambda *_args, **_kwargs: [])
-        res = _run(module.get_artifact(filename))
-        assert res["code"] == RetCode.DATA_ERROR
-        assert res["message"] == "Artifact not found."
-
-    @pytest.mark.p2
-    def test_get_artifact_denied_when_agent_not_accessible_unit(self, document_app_module, monkeypatch):
-        module = document_app_module
-        filename = "a1b2c3d4e5f6789012345678901234abcd.png"
-
-        monkeypatch.setattr(module, "_sandbox_artifact_dialog_ids_for_user", lambda *_args, **_kwargs: ["agent-1"])
-        monkeypatch.setattr(module.UserCanvasService, "accessible", lambda *_args, **_kwargs: False)
-        res = _run(module.get_artifact(filename))
-        assert res["code"] == RetCode.DATA_ERROR
-        assert res["message"] == "Artifact not found."
-
-    @pytest.mark.p2
-    def test_get_artifact_success_and_missing_blob_unit(self, document_app_module, monkeypatch):
-        module = document_app_module
-        filename = "a1b2c3d4e5f6789012345678901234abcd.png"
-
-        class _Headers(dict):
-            def set(self, key, value):
-                self[key] = value
-
-        class _ArtifactResponse:
-            def __init__(self, data):
-                self.data = data
-                self.headers = _Headers()
-
-        monkeypatch.setattr(module, "_sandbox_artifact_dialog_ids_for_user", lambda *_args, **_kwargs: ["agent-1"])
-        monkeypatch.setattr(module.UserCanvasService, "accessible", lambda *_args, **_kwargs: True)
-
-        async def fake_thread_pool_exec(fn, *args, **kwargs):
-            return fn(*args, **kwargs)
-
-        async def fake_make_response(data):
-            return _ArtifactResponse(data)
-
-        monkeypatch.setattr(module, "thread_pool_exec", fake_thread_pool_exec)
-        monkeypatch.setattr(module, "make_response", fake_make_response)
-        monkeypatch.setattr(
-            module,
-            "apply_safe_file_response_headers",
-            lambda response, content_type, extension: response.headers.update({"content_type": content_type, "extension": extension}),
-        )
-        monkeypatch.setattr(
-            module.settings,
-            "STORAGE_IMPL",
-            SimpleNamespace(get=lambda *_args, **_kwargs: b"artifact-bytes"),
-        )
-
-        res = _run(module.get_artifact(filename))
-        assert isinstance(res, _ArtifactResponse)
-        assert res.data == b"artifact-bytes"
-        assert res.headers["content_type"] == "image/png"
-
-        monkeypatch.setattr(
-            module.settings,
-            "STORAGE_IMPL",
-            SimpleNamespace(get=lambda *_args, **_kwargs: None),
-        )
-        res = _run(module.get_artifact(filename))
-        assert res["code"] == RetCode.DATA_ERROR
-        assert res["message"] == "Artifact not found."
-
 
 class TestDocumentBatchChangeStatus:
     @pytest.mark.p2

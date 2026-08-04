@@ -368,9 +368,8 @@ from api.db.services.task_service import (  # noqa: E402
 
 # ----- tunables ------------------------------------------------------
 # The structure-compile batching / merge-flush / chain-correction tunables
-# and the non-tree compilation core moved to
-# ``rag.advanced_rag.knowlege_compile.runner`` so the ``rag.flow`` Compiler
-# component can share them. Re-exported here for backwards compatibility.
+# and the non-tree compilation core live in
+# ``rag.advanced_rag.knowlege_compile.runner``. Re-exported here for callers.
 from rag.advanced_rag.knowlege_compile.runner import (  # noqa: E402
     DOC_STRUCTURE_COMPILE_BATCH_CHUNKS,
     DOC_STRUCTURE_MERGE_MAX_DOCS,  # noqa: F401

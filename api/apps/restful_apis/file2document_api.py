@@ -77,7 +77,6 @@ def _convert_files(file_ids, kb_ids, user_id, mode):
                     "id": get_uuid(),
                     "kb_id": kb.id,
                     "parser_id": FileService.get_parser(file.type, filename, kb.parser_id),
-                    "pipeline_id": kb.pipeline_id,
                     "parser_config": kb.parser_config,
                     "created_by": user_id,
                     "type": file.type,

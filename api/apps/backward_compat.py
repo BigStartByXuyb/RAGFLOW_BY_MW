@@ -50,10 +50,10 @@ import logging
 from quart import Blueprint, jsonify, request
 
 from api.apps import login_required
-from api.apps.restful_apis import agent_api, chat_api, chunk_api, dataset_api, document_api, file2document_api, file_api, openai_api
+from api.apps.restful_apis import chat_api, chunk_api, dataset_api, document_api, file2document_api, file_api, openai_api
 from api.apps.restful_apis.system_api import run_health_checks
 from api.apps.services import dataset_api_service, file_api_service
-from api.utils.api_utils import add_tenant_id_to_kwargs, get_data_error_result, get_json_result, get_request_json
+from api.utils.api_utils import add_tenant_id_to_kwargs, get_data_error_result, get_json_result
 
 manager = Blueprint("backward_compat", __name__)
 legacy_v1_manager = Blueprint("backward_compat_legacy_v1", __name__)
@@ -121,26 +121,6 @@ async def deprecated_openai_chat_completions(chat_id):
     )
     # Forward to the new API implementation
     return await openai_api.openai_chat_completions(chat_id)
-
-
-@manager.route("/agents_openai/<agent_id>/chat/completions", methods=["POST"])
-@login_required
-@add_tenant_id_to_kwargs
-async def deprecated_agents_openai_chat_completions(agent_id, tenant_id=None):
-    """
-    Deprecated: Use POST /api/v1/agents/chat/completions with openai-compatible=true instead.
-
-    Old path: POST /api/v1/agents_openai/{agent_id}/chat/completions
-    New path: POST /api/v1/agents/chat/completions
-    """
-    logging.warning(
-        "API endpoint /api/v1/agents_openai/%s/chat/completions is deprecated. Please use /api/v1/agents/chat/completions with `openai-compatible` instead.",
-        agent_id,
-    )
-    req = dict(await get_request_json())
-    req["openai-compatible"] = True
-    request._cached_payload = req
-    return await agent_api.agent_chat_completion(tenant_id=tenant_id, agent_id=agent_id)
 
 
 # =============================================================================
@@ -592,62 +572,6 @@ async def deprecated_document_get(doc_id):
         doc_id,
     )
     return await document_api.get(doc_id)
-
-
-@manager.route("/document/download/<doc_id>", methods=["GET"])
-@login_required
-async def deprecated_document_download(doc_id):
-    """
-    Deprecated: Use GET /api/v1/agents/attachments/{attachment_id}/download instead.
-
-    Old path: GET /api/v1/document/download/{doc_id}
-    New path: GET /api/v1/agents/attachments/{doc_id}/download
-    """
-    logging.warning(
-        "API endpoint /api/v1/document/download/%s is deprecated. Please use /api/v1/agents/attachments/%s/download instead.",
-        doc_id,
-        doc_id,
-    )
-    return await agent_api.download_attachment(attachment_id=doc_id)
-
-
-@legacy_v1_manager.route("/document/download/<attachment_id>", methods=["GET"])
-@login_required
-async def document_download_v1(attachment_id):
-    """
-    Compatibility alias for document download under /v1.
-
-    Old path: GET /v1/document/download/{attachment_id}
-    New path: GET /api/v1/agents/attachments/{attachment_id}/download
-    """
-    logging.warning(
-        "API endpoint /v1/document/download/%s is deprecated. Please use /api/v1/agents/attachments/%s/download instead.",
-        attachment_id,
-        attachment_id,
-    )
-    return await agent_api.download_attachment(attachment_id=attachment_id)
-
-
-# =============================================================================
-# Agent Chat API
-# =============================================================================
-
-
-@manager.route("/agents/<agent_id>/completions", methods=["POST"])
-@login_required
-@add_tenant_id_to_kwargs
-async def deprecated_agent_completions(agent_id, tenant_id=None):
-    """
-    Deprecated: Use POST /api/v1/agents/chat/completions instead.
-
-    Old path: POST /api/v1/agents/{agent_id}/completions
-    New path: POST /api/v1/agents/chat/completions
-    """
-    logging.warning(
-        "API endpoint /api/v1/agents/%s/completions is deprecated. Please use /api/v1/agents/chat/completions instead.",
-        agent_id,
-    )
-    return await agent_api.agent_chat_completion(tenant_id=tenant_id, agent_id=agent_id)
 
 
 def register_backward_compat_routes(app_instance):

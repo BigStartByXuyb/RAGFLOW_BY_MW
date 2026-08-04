@@ -17,7 +17,7 @@ import logging
 from datetime import datetime
 
 from api.apps import login_required
-from api.db.services.task_service import TaskService, CANVAS_DEBUG_DOC_ID, GRAPH_RAPTOR_FAKE_DOC_ID
+from api.db.services.task_service import TaskService, GRAPH_RAPTOR_FAKE_DOC_ID
 from api.utils.api_utils import (
     get_json_result,
     get_request_json,
@@ -86,7 +86,7 @@ async def _cancel_task(task_id):
         from api.db.services.document_service import DocumentService
 
         doc_id = task.doc_id
-        if doc_id and doc_id not in (CANVAS_DEBUG_DOC_ID, GRAPH_RAPTOR_FAKE_DOC_ID):
+        if doc_id and doc_id != GRAPH_RAPTOR_FAKE_DOC_ID:
             _, doc = DocumentService.get_by_id(doc_id)
             if doc and str(doc.run) in (TaskStatus.RUNNING.value, TaskStatus.SCHEDULE.value):
                 cancel_doc_msg = f"\n{datetime.now().strftime('%H:%M:%S')} Task stopped by user."

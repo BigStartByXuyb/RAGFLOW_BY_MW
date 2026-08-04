@@ -77,7 +77,6 @@ class ContextComparator:
         "chunks",
         "raptor_chunks",
         "docs_after_prep",
-        "dataflow_chunks",
     }
 
     def __init__(self, float_tolerance: float = None):
