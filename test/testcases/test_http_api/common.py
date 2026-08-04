@@ -28,8 +28,6 @@ FILE_STOP_PARSE_API_URL = f"/api/{VERSION}/datasets/{{dataset_id}}/documents/sto
 CHUNK_API_URL = f"/api/{VERSION}/datasets/{{dataset_id}}/documents/{{document_id}}/chunks"
 CHAT_ASSISTANT_API_URL = f"/api/{VERSION}/chats"
 SESSION_WITH_CHAT_ASSISTANT_API_URL = f"/api/{VERSION}/chats/{{chat_id}}/sessions"
-SESSION_WITH_AGENT_API_URL = f"/api/{VERSION}/agents/{{agent_id}}/sessions"
-AGENT_API_URL = f"/api/{VERSION}/agents"
 RETRIEVAL_API_URL = f"/api/{VERSION}/retrieval"
 
 
@@ -338,56 +336,6 @@ def update_documents_metadata(auth, dataset_id, payload=None):
 def related_questions(auth, payload=None, *, headers=HEADERS):
     url = f"{HOST_ADDRESS}/api/{VERSION}/searchbots/related_questions"
     res = requests.post(url=url, headers=headers, auth=auth, json=payload)
-    return res.json()
-
-
-# AGENT MANAGEMENT AND SESSIONS
-def create_agent(auth, payload=None, *, headers=HEADERS):
-    url = f"{HOST_ADDRESS}{AGENT_API_URL}"
-    res = requests.post(url=url, headers=headers, auth=auth, json=payload)
-    return res.json()
-
-
-def list_agents(auth, params=None):
-    url = f"{HOST_ADDRESS}{AGENT_API_URL}"
-    res = requests.get(url=url, headers=HEADERS, auth=auth, params=params)
-    return res.json()
-
-
-def delete_agent(auth, agent_id):
-    url = f"{HOST_ADDRESS}{AGENT_API_URL}/{agent_id}"
-    res = requests.delete(url=url, headers=HEADERS, auth=auth)
-    return res.json()
-
-
-def create_agent_session(auth, agent_id, payload=None, params=None):
-    url = f"{HOST_ADDRESS}{SESSION_WITH_AGENT_API_URL}".format(agent_id=agent_id)
-    res = requests.post(url=url, headers=HEADERS, auth=auth, json=payload, params=params)
-    return res.json()
-
-
-def list_agent_sessions(auth, agent_id, params=None):
-    url = f"{HOST_ADDRESS}{SESSION_WITH_AGENT_API_URL}".format(agent_id=agent_id)
-    res = requests.get(url=url, headers=HEADERS, auth=auth, params=params)
-    return res.json()
-
-
-def delete_agent_sessions(auth, agent_id, payload=None):
-    url = f"{HOST_ADDRESS}{SESSION_WITH_AGENT_API_URL}".format(agent_id=agent_id)
-    res = requests.delete(url=url, headers=HEADERS, auth=auth, json=payload)
-    return res.json()
-
-
-def delete_all_agent_sessions(auth, agent_id, *, page_size=100):
-    return delete_agent_sessions(auth, agent_id, {"ids": None, "delete_all": True})
-
-
-def agent_completions(auth, agent_id, payload=None):
-    url = f"{HOST_ADDRESS}{AGENT_API_URL}/chat/completions"
-    body = {"agent_id": agent_id}
-    if payload:
-        body.update(payload)
-    res = requests.post(url=url, headers=HEADERS, auth=auth, json=body)
     return res.json()
 
 

@@ -40,9 +40,8 @@ class LLMBundle(LLM4Tenant):
 
     def _start_langfuse_observation(self, **kwargs):
         # Correlating attributes (session_id/user_id) let Langfuse group all of a
-        # turn's generations. They may come from this bundle (chat/dialog path) or,
-        # for agent runs whose bundles are created without them, from the per-run
-        # context installed by Canvas.run.
+        # turn's generations. They may come from this bundle or the request-scoped
+        # context when a bundle is created without them.
         attrs = {}
         if self.langfuse_session_id:
             attrs["session_id"] = self.langfuse_session_id

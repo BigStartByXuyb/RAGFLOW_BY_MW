@@ -109,17 +109,12 @@ Commands are case-insensitive and must be terminated with a semicolon(;).
 - Deletes a specific API key for the specified user.
 - [Example](#example-drop-key)
 
-### Data and Agent Commands
+### Data Commands
 
 `LIST DATASETS OF <username>;`
 
 - Lists the datasets associated with the specified user.
 - [Example](#example-list-datasets-of-user)
-
-`LIST AGENTS OF <username>;`
-
-- Lists the agents associated with the specified user.
-- [Example](#example-list-agents-of-user)
 
 ### System info
 
@@ -415,21 +410,6 @@ Listing all datasets of user: lynn_inf@hotmail.com
 +-----------+-------------------------------+---------+----------+---------------+------------+--------+-----------+-------------------------------+
 ```
 
-<span id="example-list-agents-of-user"></span>
-
-- List the specified user's agents.
-
-```
-ragflow> list agents of "lynn_inf@hotmail.com";
-command: list agents of "lynn_inf@hotmail.com";
-Listing all agents of user: lynn_inf@hotmail.com
-+-----------------+-------------+------------+-----------------+
-| canvas_category | canvas_type | permission | title           |
-+-----------------+-------------+------------+-----------------+
-| agent           | None        | team       | research_helper |
-+-----------------+-------------+------------+-----------------+
-```
-
 <span id="example-show-version"></span>
 
 - Display the current RAGFlow version.
@@ -565,7 +545,6 @@ CREATE USER <user> <password>
 ALTER USER PASSWORD <user> <new_password>
 ALTER USER ACTIVE <user> <on/off>
 LIST DATASETS OF <user>
-LIST AGENTS OF <user>
 CREATE ROLE <role>
 DROP ROLE <role>
 ALTER ROLE <role> SET DESCRIPTION <description>

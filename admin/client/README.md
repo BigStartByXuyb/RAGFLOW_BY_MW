@@ -6,7 +6,7 @@ Admin Service is a dedicated management component designed to monitor, maintain,
 
 The service offers real-time monitoring of critical components, including the RAGFlow server, Task Executor processes, and dependent services such as MySQL, Infinity, Elasticsearch, Redis, and MinIO. It automatically checks their health status, resource usage, and uptime, and performs restarts in case of failures to minimize downtime.
 
-For user and system management, it supports listing, creating, modifying, and deleting users and their associated resources like knowledge bases and Agents.
+For user and system management, it supports listing, creating, modifying, and deleting users and their associated knowledge bases.
 
 Built with scalability and reliability in mind, the Admin Service ensures smooth system operation and simplifies maintenance workflows.
 
@@ -95,12 +95,10 @@ Commands are case-insensitive and must be terminated with a semicolon (`;`).
     -   Changes the user to active or inactive.
 
 
-### Data and Agent Commands
+### Data Commands
 
 -   `LIST DATASETS OF '<username>';`
     -   Lists the datasets associated with the specified user.
--   `LIST AGENTS OF '<username>';`
-    -   Lists the agents associated with the specified user.
 
 ### Meta-Commands
 

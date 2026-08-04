@@ -17,7 +17,6 @@
 Unit tests for TaskContext module.
 """
 
-from unittest.mock import MagicMock
 from rag.svr.task_executor_refactor.task_context import TaskContext, TaskLimiters, TaskCallbacks
 
 
@@ -310,20 +309,6 @@ class TestTaskContextAdditionalProperties:
         task = {"id": "task_1", "tenant_id": "tenant_1", "pagerank": 10}
         ctx = _make_ctx(task=task)
         assert ctx.pagerank == 10
-
-    def test_file_default(self):
-        """Test file property defaults to None."""
-        task = {"id": "task_1", "tenant_id": "tenant_1"}
-        ctx = _make_ctx(task=task)
-        assert ctx.file is None
-
-    def test_file(self):
-        """Test file property."""
-        file_obj = MagicMock()
-        task = {"id": "task_1", "tenant_id": "tenant_1", "file": file_obj}
-        ctx = _make_ctx(task=task)
-        assert ctx.file is file_obj
-
 
 class TestTaskContextMemoryProperties:
     """Tests for memory task properties."""

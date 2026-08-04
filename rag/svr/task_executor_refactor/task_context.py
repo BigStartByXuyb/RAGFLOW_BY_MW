@@ -56,7 +56,7 @@ Usage example::
 import asyncio
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Required, TypedDict
+from typing import Any, Callable, Dict, List, Required, TypedDict
 
 from rag.svr.task_executor_refactor.recording_context import BaseRecordingContext
 from rag.svr.task_executor_refactor.write_operation_interceptor import WriteOperationInterceptor
@@ -133,9 +133,6 @@ class TaskDict(TypedDict, total=False):
 
     pagerank: int
     """PageRank value for document scoring."""
-
-    file: Any
-    """File object for dataflow processing."""
 
     memory_id: str
     """Memory identifier for memory tasks."""
@@ -411,11 +408,6 @@ class TaskContext:
     def pagerank(self) -> int:
         """PageRank value for document scoring."""
         return self._task.get("pagerank", self._DEFAULTS["pagerank"])
-
-    @property
-    def file(self) -> Optional[Any]:
-        """File object for dataflow processing."""
-        return self._task.get("file")
 
     # =========================================================================
     # Memory task specific properties
