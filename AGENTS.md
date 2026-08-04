@@ -108,3 +108,10 @@ bash build.sh --all
 - Collapse duplicate implementations to one path.
 - Drop stale comments and documentation that describe a superseded design.
 - Keep exported APIs only when the current code actually needs them.
+
+## Python DataFlow and Canvas-Agent Removal
+- The Python product must not expose user-configurable DataFlow pipelines or drag-and-drop canvas agents. Remove their frontend pages, routes, navigation, API clients, Python APIs, services, models, templates, task/log handling, schema/migrations, and every remaining reference together.
+- Keep the fixed internal RAG document-processing flow: upload, parsing/OCR, chunking, embedding, indexing, retrieval, standard chat, and knowledge-base APIs. This fixed flow is not a user-configurable pipeline.
+- Do not modify Go or C++ as part of this removal unless a later task explicitly expands the scope.
+- Remove obsolete feature-specific translations and tests only. Preserve, and repair or extend where needed, translations and tests for all retained RAG, standard-chat, and knowledge-base API capabilities.
+- Before completing this removal, perform a repository-wide residual-reference audit and an ownership/call-path review of retained Python code. Confirm that no retained route, import, model, task, or test depends on the removed features; record the searches and validation results in the active task record.
