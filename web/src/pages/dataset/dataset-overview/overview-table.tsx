@@ -2,7 +2,6 @@ import { EmptyType } from '@/components/empty/constant';
 import Empty from '@/components/empty/empty';
 import FileStatusBadge from '@/components/file-status-badge';
 import { FileIcon, IconFontFill } from '@/components/icon-font';
-import { RAGFlowAvatar } from '@/components/ragflow-avatar';
 import { Button } from '@/components/ui/button';
 import { RAGFlowPagination } from '@/components/ui/ragflow-pagination';
 import {
@@ -20,10 +19,7 @@ import {
 } from '@/components/ui/tooltip';
 import { RunningStatusMap } from '@/constants/knowledge';
 import { useTranslate } from '@/hooks/common-hooks';
-import { useNavigatePage } from '@/hooks/logic-hooks/navigate-hooks';
 import { cn } from '@/lib/utils';
-import { PipelineResultSearchParams } from '@/pages/dataflow-result/constant';
-import { NavigateToDataflowResultProps } from '@/pages/dataflow-result/interface';
 import { useDataSourceInfo } from '@/pages/user-setting/data-source/constant';
 import { IDataSourceInfoMap } from '@/pages/user-setting/data-source/interface';
 import { formatDate, formatSecondsToHumanReadable } from '@/utils/date';
@@ -40,9 +36,8 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { TFunction } from 'i18next';
-import { ArrowUpDown, ClipboardList, Eye, MonitorUp } from 'lucide-react';
+import { ArrowUpDown, Eye, MonitorUp } from 'lucide-react';
 import { FC, useMemo, useState } from 'react';
-import { useParams } from 'react-router';
 import { RunningStatus } from '../dataset/constant';
 import ProcessLogModal, { ILogInfo } from '../process-log-modal';
 import { LogTabs, ProcessingType, ProcessingTypeMap } from './dataset-common';
@@ -51,10 +46,6 @@ import { DocumentLog, FileLogsTableProps, IFileLogItem } from './interface';
 export const getFileLogsTableColumns = (
   t: TFunction<'translation', string>,
   showLog: (row: Row<IFileLogItem & DocumentLog>, active: LogTabs) => void,
-  knowledgeId: string,
-  navigateToDataflowResult: (
-    props: NavigateToDataflowResultProps,
-  ) => () => void,
   dataSourceInfo: IDataSourceInfoMap,
 ) => {
   // const { t } = useTranslate('knowledgeDetails');
@@ -135,24 +126,6 @@ export const getFileLogsTableColumns = (
       ),
     },
     {
-      accessorKey: 'pipeline_title',
-      header: t('dataPipelineTitle'),
-      cell: ({ row }) => {
-        const title = row.original.pipeline_title;
-        const pipelineTitle = title === 'naive' ? 'general' : title;
-        return (
-          <div className="flex items-center gap-2 text-text-primary">
-            <RAGFlowAvatar
-              avatar={row.original.avatar}
-              name={pipelineTitle}
-              className="size-4"
-            />
-            {pipelineTitle}
-          </div>
-        );
-      },
-    },
-    {
       accessorKey: 'process_begin_at',
       header: ({ column }) => {
         return (
@@ -210,23 +183,6 @@ export const getFileLogsTableColumns = (
           >
             <Eye />
           </Button>
-          {row.original.pipeline_id && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={navigateToDataflowResult({
-                id: row.original.id,
-                [PipelineResultSearchParams.KnowledgeId]:
-                  row.original.kb_id || knowledgeId,
-                [PipelineResultSearchParams.DocumentId]:
-                  row.original.document_id,
-                [PipelineResultSearchParams.IsReadOnly]: 'false',
-                [PipelineResultSearchParams.Type]: 'dataflow',
-              })}
-            >
-              <ClipboardList />
-            </Button>
-          )}
         </div>
       ),
     },
@@ -364,9 +320,7 @@ const FileLogsTable: FC<FileLogsTableProps> = ({
   const { t } = useTranslate('knowledgeDetails');
   const { t: tDatasetOverview } = useTranslate('datasetOverview');
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const { navigateToDataflowResult } = useNavigatePage();
   const [logInfo, setLogInfo] = useState<IFileLogItem>();
-  const knowledgeId = useParams().id;
   const showLog = (row: Row<IFileLogItem & DocumentLog>) => {
     const logDetail = {
       taskId: row.original?.dsl?.task_id,
@@ -390,8 +344,6 @@ const FileLogsTable: FC<FileLogsTableProps> = ({
       ? getFileLogsTableColumns(
           t,
           showLog,
-          knowledgeId || '',
-          navigateToDataflowResult,
           dataSourceInfo,
         )
       : getDatasetLogsTableColumns(t, showLog);

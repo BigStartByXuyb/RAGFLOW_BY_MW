@@ -35,7 +35,6 @@ export interface IFileLogItem {
   document_name: string;
   document_suffix: string;
   document_type: string;
-  dsl: any;
   path: string[];
   task_id: string;
   id: string;
@@ -43,8 +42,6 @@ export interface IFileLogItem {
   kb_id: string;
   operation_status: string;
   parser_id: string;
-  pipeline_id: string;
-  pipeline_title: string;
   avatar: string;
   process_begin_at: null | string;
   process_duration: number;

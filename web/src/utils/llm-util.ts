@@ -126,7 +126,6 @@ const API_WHITELIST = [
   '/api/v1/searches/',
   '/api/v1/memories',
   '/api/v1/datasets',
-  '/v1/dataflow/set',
 ];
 
 // Check if the URL is in the whitelist

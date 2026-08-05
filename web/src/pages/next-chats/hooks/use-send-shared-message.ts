@@ -48,7 +48,7 @@ export const useSendSharedMessage = () => {
     data: data,
   } = useGetSharedChatSearchParams();
   const { handleInputChange, value, setValue } = useHandleMessageInputChange();
-  const completionUrl = `/api/v1/${from === SharedFrom.Agent ? 'agentbots' : 'chatbots'}/${conversationId}/completions`;
+  const completionUrl = `/api/v1/chatbots/${conversationId}/completions`;
   const { data: chatInfo } = useFetchExternalChatInfo();
   const { send, answer, done, stopOutputMessage } = useSendMessageWithSse();
   const {

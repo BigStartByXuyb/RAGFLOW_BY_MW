@@ -1,5 +1,4 @@
 import message from '@/components/ui/message';
-import agentService from '@/services/agent-service';
 import {
   deletePipelineTask,
   runIndex,
@@ -144,8 +143,6 @@ export const useDatasetGenerate = () => {
       task_id: string;
       type: GenerateType;
     }) => {
-      const { data } = await agentService.cancelDataflow(task_id);
-
       // For GraphRAG, pause must preserve partial progress (subgraphs,
       // entities, relations, community reports) so the next run_graphrag
       // call can resume instead of redoing hours of LLM extraction. Raptor
@@ -154,12 +151,12 @@ export const useDatasetGenerate = () => {
         type: GenerateTypeMap[type as GenerateType],
         wipe: type === GenerateType.KnowledgeGraph ? false : undefined,
       });
-      if (data.code === 0 && unbindData.code === 0) {
+      if (unbindData.code === 0) {
         queryClient.invalidateQueries({
           queryKey: DatasetGenerateKeys.traceById(type, id),
         });
       }
-      return data;
+      return unbindData;
     },
   });
   return { runGenerate: mutateAsync, pauseGenerate, data, loading };

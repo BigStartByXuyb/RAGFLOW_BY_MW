@@ -168,12 +168,7 @@ function EmbedDialog({
       widgetHeaderTextColor,
       widgetFooterTextColor,
     } = values;
-    const baseRoute =
-      embedType === 'widget'
-        ? Routes.ChatWidget
-        : from === SharedFrom.Agent
-          ? Routes.AgentShare
-          : Routes.ChatShare;
+    const baseRoute = embedType === 'widget' ? Routes.ChatWidget : Routes.ChatShare;
 
     const src = new URL(`${location.origin}${baseRoute}`);
     src.searchParams.append('shared_id', token);

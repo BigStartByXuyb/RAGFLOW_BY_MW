@@ -1,12 +1,12 @@
 import { Authorization } from '@/constants/authorization';
 import { useGetKnowledgeSearchParams } from '@/hooks/route-hook';
-import { useGetPipelineResultSearchParams } from '@/pages/dataflow-result/hooks';
 import api, { restAPIv1 } from '@/utils/api';
 import { getAuthorization } from '@/utils/authorization-util';
 import jsPreviewExcel from '@js-preview/excel';
 import { useSize } from 'ahooks';
 import axios from 'axios';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 
 // ZIP file header bytes "PK"
 const ZIP_HEADER_0 = 0x50;
@@ -70,14 +70,16 @@ export const useHighlightText = (searchText: string = '') => {
 
 export const useGetDocumentUrl = (isAgent: boolean) => {
   const { documentId } = useGetKnowledgeSearchParams();
-  const { createdBy, documentId: id } = useGetPipelineResultSearchParams();
+  const [searchParams] = useSearchParams();
+  const agentDocumentId = searchParams.get('doc_id') || '';
+  const createdBy = searchParams.get('created_by') || '';
 
   const url = useMemo(() => {
     if (isAgent) {
-      return api.downloadFile + `?id=${id}&created_by=${createdBy}`;
+      return api.downloadFile + `?id=${agentDocumentId}&created_by=${createdBy}`;
     }
     return `${restAPIv1}/documents/${documentId}/preview`;
-  }, [createdBy, documentId, id, isAgent]);
+  }, [agentDocumentId, createdBy, documentId, isAgent]);
 
   return url;
 };

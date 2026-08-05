@@ -72,10 +72,6 @@ const methods = {
     url: listPipelines,
     method: 'get',
   },
-  pipelineRerun: {
-    url: api.pipelineRerun,
-    method: 'post',
-  },
 };
 
 const baseKbService = registerServer<keyof typeof methods>(methods, request);

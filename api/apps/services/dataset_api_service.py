@@ -95,9 +95,6 @@ async def create_dataset(tenant_id: str, req: dict):
     :param req: dataset creation request
     :return: (success, result) or (success, error_message)
     """
-    if "pipeline_id" in req:
-        return False, '"pipeline_id" is no longer supported'
-
     # Extract ext field for additional parameters
     ext_fields = req.pop("ext", {})
 
@@ -143,7 +140,6 @@ async def create_dataset(tenant_id: str, req: dict):
     if not ok:
         return False, "Dataset created failed"
     response_data = remap_dictionary_keys(k.to_dict())
-    response_data.pop("pipeline_id", None)
     return True, response_data
 
 
@@ -243,7 +239,6 @@ def get_dataset(dataset_id: str, tenant_id: str):
         return False, "Invalid Dataset ID"
 
     response_data = remap_dictionary_keys(kb.to_dict())
-    response_data.pop("pipeline_id", None)
     response_data["size"] = DocumentService.get_total_size_by_kb_id(dataset_id)
     response_data["connectors"] = list(Connector2KbService.list_connectors(dataset_id))
     return True, response_data
@@ -287,9 +282,6 @@ async def update_dataset(tenant_id: str, dataset_id: str, req: dict):
     """
     if not req:
         return False, "no properties were modified"
-
-    if "pipeline_id" in req:
-        return False, '"pipeline_id" is no longer supported'
 
     kb = KnowledgebaseService.get_or_none(id=dataset_id, tenant_id=tenant_id)
     if kb is None:
@@ -394,7 +386,6 @@ async def update_dataset(tenant_id: str, dataset_id: str, req: dict):
         logging.error("Link KB errors: %s", errors)
 
     response_data = remap_dictionary_keys(k.to_dict())
-    response_data.pop("pipeline_id", None)
     response_data["connectors"] = connectors
     return True, response_data
 
@@ -466,7 +457,6 @@ def list_datasets(tenant_id: str, args: dict):
         if status_by_kb:
             kb["parsing_status"] = status_by_kb.get(kb["id"], {})
         response_data = remap_dictionary_keys(kb)
-        response_data.pop("pipeline_id", None)
         response_data_list.append(response_data)
     return True, {"data": response_data_list, "total": total}
 

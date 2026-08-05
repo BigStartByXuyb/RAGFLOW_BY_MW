@@ -18,7 +18,6 @@ import math
 import pathlib
 import re
 from collections import Counter
-import string
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
@@ -534,21 +533,10 @@ class CreateDatasetReq(Base):
     embedding_model: Annotated[str | None, Field(default=None, max_length=255, serialization_alias="embd_id")]
     permission: Annotated[Literal["me", "team"], Field(default="me", min_length=1, max_length=16)]
     parse_type: Annotated[int | None, Field(default=None, ge=0, le=64)]
-    pipeline_id: Annotated[str | None, Field(default=None, min_length=32, max_length=32, serialization_alias="pipeline_id")]
     chunk_method: Annotated[str | None, Field(default=None, serialization_alias="parser_id")]
     parser_config: Annotated[ParserConfig | None, Field(default=None)]
     auto_metadata_config: Annotated[AutoMetadataConfig | None, Field(default=None)]
     ext: Annotated[dict, Field(default={})]
-
-    @field_validator("pipeline_id", mode="before")
-    @classmethod
-    def handle_pipeline_id(cls, v: str | None, info: ValidationInfo):
-        """Drop pipeline_id when parse_type selects direct parser mode."""
-        if v is None:
-            return v
-        if info.data.get("parse_type", 0) == 1:
-            v = None
-        return v
 
     @field_validator("avatar", mode="after")
     @classmethod
@@ -713,26 +701,6 @@ class CreateDatasetReq(Base):
             raise PydanticCustomError("string_too_long", "Parser config exceeds size limit (max 65,535 characters). Current size: {actual}", {"actual": len(json_str)})
         return v
 
-    @field_validator("pipeline_id", mode="after")
-    @classmethod
-    def validate_pipeline_id(cls, v: str | None) -> str | None:
-        """Validate pipeline_id as 32-char lowercase hex string if provided.
-
-        Rules:
-        - None or empty string: treat as None (not set)
-        - Must be exactly length 32
-        - Must contain only hex digits (0-9a-fA-F); normalized to lowercase
-        """
-        if v is None:
-            return None
-        if v == "":
-            return None
-        if len(v) != 32:
-            raise PydanticCustomError("format_invalid", "pipeline_id must be 32 hex characters")
-        if any(ch not in string.hexdigits for ch in v):
-            raise PydanticCustomError("format_invalid", "pipeline_id must be hexadecimal")
-        return v.lower()
-
     @model_validator(mode="after")
     def validate_parser_dependency(self) -> "CreateDatasetReq":
         """
@@ -748,16 +716,14 @@ class CreateDatasetReq(Base):
         # Omitted chunk_method (not in fields) logic
         if self.chunk_method is None and "chunk_method" not in self.model_fields_set:
             # All three absent → default naive
-            if self.parse_type is None and self.pipeline_id is None:
+            if self.parse_type is None:
                 object.__setattr__(self, "chunk_method", "naive")
                 return self
             # parser_id omitted: require BOTH parse_type & pipeline_id present (no partial allowed)
-            if self.parse_type is None or self.pipeline_id is None:
+            if self.parse_type is None:
                 missing = []
                 if self.parse_type is None:
                     missing.append("parse_type")
-                if self.pipeline_id is None:
-                    missing.append("pipeline_id")
                 raise PydanticCustomError(
                     "dependency_error",
                     "parser_id omitted → required fields missing: {fields}",
@@ -769,11 +735,9 @@ class CreateDatasetReq(Base):
         # parser_id provided (valid): parse_type MUST be one of [None, 1], and MUST NOT have pipeline_id
         if isinstance(self.chunk_method, str):
             invalid = []
-            if self.parse_type not in [None, 1] or self.pipeline_id is not None:
+            if self.parse_type not in [None, 1]:
                 if self.parse_type not in [None, 1]:
                     invalid.append("parse_type")
-                if self.pipeline_id is not None:
-                    invalid.append("pipeline_id")
                 raise PydanticCustomError(
                     "dependency_error",
                     "parser_id provided → disallowed fields present: {fields}",
@@ -793,7 +757,7 @@ class CreateDatasetReq(Base):
         except Exception:
             raise PydanticCustomError("literal_error", error_msg)
             # Omitted field: handler won't be invoked (wrap still gets value); None treated as explicit invalid
-        if not result and not info.data.get("pipeline_id", None):
+        if not result:
             raise PydanticCustomError("literal_error", error_msg)
         # After handler, enforce enumeration
         if result and result not in allowed:

@@ -852,7 +852,6 @@ class Knowledgebase(DataBaseModel):
     vector_similarity_weight = FloatField(default=0.3, index=True)
 
     parser_id = CharField(max_length=32, null=False, help_text="default parser ID", default=ParserType.NAIVE.value, index=True)
-    pipeline_id = CharField(max_length=32, null=True, help_text="Pipeline ID", index=True)
     parser_config = JSONField(null=False, default={"pages": [[1, 1000000]], "table_context_size": 0, "image_context_size": 0})
     pagerank = IntegerField(default=0, index=False)
 
@@ -896,7 +895,6 @@ class Document(DataBaseModel):
     thumbnail = TextField(null=True, help_text="thumbnail base64 string")
     kb_id = CharField(max_length=256, null=False, index=True)
     parser_id = CharField(max_length=32, null=False, help_text="default parser ID", index=True)
-    pipeline_id = CharField(max_length=32, null=True, help_text="pipeline ID", index=True)
     parser_config = JSONField(null=False, default={"pages": [[1, 1000000]], "table_context_size": 0, "image_context_size": 0})
     source_type = CharField(max_length=128, null=False, default="local", help_text="where dose this document come from", index=True)
     type = CharField(max_length=32, null=False, help_text="file extension", index=True)
@@ -1098,51 +1096,6 @@ class API4Conversation(DataBaseModel):
         db_table = "api_4_conversation"
 
 
-class UserCanvas(DataBaseModel):
-    id = CharField(max_length=32, primary_key=True)
-    avatar = TextField(null=True, help_text="avatar base64 string")
-    user_id = CharField(max_length=255, null=False, help_text="user_id", index=True)
-    title = CharField(max_length=255, null=True, help_text="Canvas title")
-
-    permission = CharField(max_length=16, null=False, help_text="me|team", default="me", index=True)
-    release = BooleanField(null=False, help_text="is released", default=False, index=True)
-    description = TextField(null=True, help_text="Canvas description")
-    canvas_type = CharField(max_length=32, null=True, help_text="Canvas type", index=True)
-    canvas_category = CharField(max_length=32, null=False, default="agent_canvas", help_text="Canvas category: agent_canvas|dataflow_canvas", index=True)
-    tags = CharField(max_length=512, null=False, default="", help_text="Comma-separated tags for organizing agents", index=True)
-    dsl = JSONField(null=True, default={})
-
-    class Meta:
-        db_table = "user_canvas"
-
-
-class CanvasTemplate(DataBaseModel):
-    id = CharField(max_length=32, primary_key=True)
-    avatar = TextField(null=True, help_text="avatar base64 string")
-    title = JSONField(null=True, default=dict, help_text="Canvas title")
-    description = JSONField(null=True, default=dict, help_text="Canvas description")
-    canvas_type = CharField(max_length=32, null=True, help_text="Canvas type", index=True)
-    canvas_types = ListField(null=True, default=list, help_text="Canvas types")
-    canvas_category = CharField(max_length=32, null=False, default="agent_canvas", help_text="Canvas category: agent_canvas|dataflow_canvas", index=True)
-    dsl = JSONField(null=True, default={})
-
-    class Meta:
-        db_table = "canvas_template"
-
-
-class UserCanvasVersion(DataBaseModel):
-    id = CharField(max_length=32, primary_key=True)
-    user_canvas_id = CharField(max_length=255, null=False, help_text="user_canvas_id", index=True)
-
-    title = CharField(max_length=255, null=True, help_text="Canvas title")
-    description = TextField(null=True, help_text="Canvas description")
-    release = BooleanField(null=False, help_text="is released", default=False, index=True)
-    dsl = JSONField(null=True, default={})
-
-    class Meta:
-        db_table = "user_canvas_version"
-
-
 class MCPServer(DataBaseModel):
     id = CharField(max_length=32, primary_key=True)
     name = CharField(max_length=255, null=False, help_text="MCP Server name")
@@ -1236,8 +1189,6 @@ class PipelineOperationLog(DataBaseModel):
     document_id = CharField(max_length=32, index=True)
     tenant_id = CharField(max_length=32, null=False, index=True)
     kb_id = CharField(max_length=32, null=False, index=True)
-    pipeline_id = CharField(max_length=32, null=True, help_text="Pipeline ID", index=True)
-    pipeline_title = CharField(max_length=32, null=True, help_text="Pipeline title", index=True)
     parser_id = CharField(max_length=32, null=False, help_text="Parser ID", index=True)
     document_name = CharField(max_length=255, null=False, help_text="File name")
     document_suffix = CharField(max_length=255, null=False, help_text="File suffix")
@@ -1247,7 +1198,6 @@ class PipelineOperationLog(DataBaseModel):
     progress_msg = TextField(null=True, help_text="process message", default="")
     process_begin_at = DateTimeField(null=True, index=True)
     process_duration = FloatField(default=0)
-    dsl = JSONField(null=True, default=dict)
     task_type = CharField(max_length=32, null=False, default="")
     operation_status = CharField(max_length=32, null=False, help_text="Operation status")
     avatar = TextField(null=True, help_text="avatar base64 string")
@@ -1478,6 +1428,19 @@ def alter_db_drop_index(migrator, table_name, index_name):
         # rename fail will lead to a weired error.
         # logging.critical(f"Failed to rename {settings.DATABASE_TYPE.upper()}.{table_name} column {old_column_name} to {new_column_name}, error: {ex}")
         pass
+
+
+def alter_db_drop_column_if_exists(migrator, table_name, column_name):
+    if not DB.table_exists(table_name):
+        return
+    if column_name not in {column.name for column in DB.get_columns(table_name)}:
+        return
+    migrate(migrator.drop_column(table_name, column_name))
+
+
+def drop_table_if_exists(table_name):
+    if DB.table_exists(table_name):
+        DB.execute_sql(f"DROP TABLE {table_name}")
 
 
 def ensure_model_indexes(migrator):
@@ -1745,8 +1708,6 @@ def migrate_db():
     alter_db_add_column(migrator, "conversation", "user_id", CharField(max_length=255, null=True, help_text="user_id", index=True))
     alter_db_add_column(migrator, "task", "task_type", CharField(max_length=32, null=False, default=""))
     alter_db_add_column(migrator, "task", "priority", IntegerField(default=0))
-    alter_db_add_column(migrator, "user_canvas", "permission", CharField(max_length=16, null=False, help_text="me|team", default="me", index=True))
-    alter_db_add_column(migrator, "user_canvas", "release", BooleanField(null=False, help_text="is released", default=False, index=True))
     alter_db_add_column(migrator, "llm", "is_tools", BooleanField(null=False, help_text="support tools", default=False))
     alter_db_add_column(migrator, "mcp_server", "variables", JSONField(null=True, help_text="MCP Server variables", default=dict))
     alter_db_rename_column(migrator, "task", "process_duation", "process_duration")
@@ -1754,14 +1715,7 @@ def migrate_db():
     alter_db_add_column(migrator, "document", "suffix", CharField(max_length=32, null=False, default="", help_text="The real file extension suffix", index=True))
     alter_db_add_column(migrator, "api_4_conversation", "errors", TextField(null=True, help_text="errors"))
     alter_db_add_column(migrator, "dialog", "meta_data_filter", JSONField(null=True, default={}))
-    alter_db_column_type(migrator, "canvas_template", "title", JSONField(null=True, default=dict, help_text="Canvas title"))
-    alter_db_column_type(migrator, "canvas_template", "description", JSONField(null=True, default=dict, help_text="Canvas description"))
-    alter_db_add_column(migrator, "user_canvas", "canvas_category", CharField(max_length=32, null=False, default="agent_canvas", help_text="agent_canvas|dataflow_canvas", index=True))
-    alter_db_add_column(migrator, "canvas_template", "canvas_category", CharField(max_length=32, null=False, default="agent_canvas", help_text="agent_canvas|dataflow_canvas", index=True))
-    alter_db_add_column(migrator, "canvas_template", "canvas_types", ListField(null=True, default=list, help_text="Canvas types"))
-    alter_db_add_column(migrator, "knowledgebase", "pipeline_id", CharField(max_length=32, null=True, help_text="Pipeline ID", index=True))
     alter_db_add_column(migrator, "chat_channel", "dialog_id", CharField(max_length=32, null=True, help_text="connected dialog id", index=True))
-    alter_db_add_column(migrator, "document", "pipeline_id", CharField(max_length=32, null=True, help_text="Pipeline ID", index=True))
     alter_db_add_column(migrator, "knowledgebase", "graphrag_task_id", CharField(max_length=32, null=True, help_text="Gragh RAG task ID", index=True))
     alter_db_add_column(migrator, "knowledgebase", "raptor_task_id", CharField(max_length=32, null=True, help_text="RAPTOR task ID", index=True))
     alter_db_add_column(migrator, "knowledgebase", "graphrag_task_finish_at", DateTimeField(null=True))
@@ -1785,8 +1739,6 @@ def migrate_db():
     # Migrate system_settings.value from CharField to TextField for longer sandbox configs
     alter_db_column_type(migrator, "system_settings", "value", TextField(null=False, help_text="Configuration value (JSON, string, etc.)"))
     alter_db_add_column(migrator, "document", "content_hash", CharField(max_length=32, null=True, help_text="xxhash128 of document content for change detection", default="", index=True))
-    alter_db_add_column(migrator, "user_canvas_version", "release", BooleanField(null=False, help_text="is released", default=False, index=True))
-    alter_db_add_column(migrator, "user_canvas", "tags", CharField(max_length=512, null=False, default="", help_text="Comma-separated tags for organizing agents", index=True))
     alter_db_add_column(migrator, "api_4_conversation", "version_title", CharField(max_length=255, null=True, help_text="canvas version title when session created", index=False))
     alter_db_column_type(migrator, "document", "size", BigIntegerField(default=0, index=True))
     alter_db_column_type(migrator, "file", "size", BigIntegerField(default=0, index=True))
@@ -1804,6 +1756,13 @@ def migrate_db():
     alter_db_drop_index(migrator, "tenant_langfuse", "idx_tenant_langfuse_secret_key")
     alter_db_drop_index(migrator, "tenant_langfuse", "idx_tenant_langfuse_public_key")
     alter_db_drop_index(migrator, "tenant_langfuse", "idx_tenant_langfuse_host")
+
+    alter_db_drop_column_if_exists(migrator, "document", "pipeline_id")
+    alter_db_drop_column_if_exists(migrator, "knowledgebase", "pipeline_id")
+    for column_name in ("pipeline_id", "pipeline_title", "dsl"):
+        alter_db_drop_column_if_exists(migrator, "pipeline_operation_log", column_name)
+    for table_name in ("user_canvas_version", "canvas_template", "user_canvas"):
+        drop_table_if_exists(table_name)
 
     # Drop both the explicit "idx_*" name from later migrations AND the
     # Peewee-auto-derived "<table-as-classname>_<col1>_<col2>" name from the

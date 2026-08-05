@@ -13,7 +13,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { DocumentParserType, ParseType } from '@/constants/knowledge';
+import { DocumentParserType } from '@/constants/knowledge';
 import { useFetchKnowledgeBaseConfiguration } from '@/hooks/use-knowledge-request';
 import { IModalProps } from '@/interfaces/common';
 import { IParserConfig } from '@/interfaces/database/document';
@@ -36,14 +36,12 @@ import {
   AutoQuestionsFormField,
 } from '../auto-keywords-form-field';
 import { ChildrenDelimiterForm } from '../children-delimiter-form';
-import { DataFlowSelect } from '../data-pipeline-select';
 import { DelimiterFormField } from '../delimiter-form-field';
 import { EntityTypesFormField } from '../entity-types-form-field';
 import { ExcelToHtmlFormField } from '../excel-to-html-form-field';
 import { LayoutRecognizeFormField } from '../layout-recognize-form-field';
 import { MaxTokenNumberFormField } from '../max-token-number-from-field';
 import { MinerUOptionsFormField } from '../mineru-options-form-field';
-import { ParseTypeItem } from '../parse-type-form-field';
 import { ButtonLoading } from '../ui/button';
 import { Input } from '../ui/input';
 import { DynamicPageRange } from './dynamic-page-range';
@@ -58,7 +56,6 @@ const FormId = 'ChunkMethodDialogForm';
 interface IProps extends IModalProps<IChangeParserRequestBody> {
   loading: boolean;
   parserId: string;
-  pipelineId?: string;
   parserConfig: IParserConfig;
   documentExtension: string;
   documentId: string;
@@ -77,7 +74,6 @@ export function ChunkMethodDialog({
   hideModal,
   onOk,
   parserId,
-  pipelineId,
   documentExtension,
   visible,
   parserConfig,
@@ -98,14 +94,12 @@ export function ChunkMethodDialog({
 
   const FormSchema = z
     .object({
-      parseType: z.nativeEnum(ParseType),
       parser_id: z
         .string()
         .min(1, {
           message: t('common.pleaseSelect'),
         })
         .trim(),
-      pipeline_id: z.string().optional(),
       parser_config: z.object({
         task_page_size: z.coerce.number().optional(),
         layout_recognize: z.string().optional(),
@@ -167,23 +161,12 @@ export function ChunkMethodDialog({
           .optional(),
         enable_metadata: z.boolean().optional(),
       }),
-    })
-    .superRefine((data, ctx) => {
-      if (data.parseType === ParseType.Pipeline && !data.pipeline_id) {
-        ctx.addIssue({
-          path: ['pipeline_id'],
-          message: t('common.pleaseSelect'),
-          code: 'custom',
-        });
-      }
     });
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       parser_id: parserId || '',
-      pipeline_id: pipelineId || '',
-      parseType: pipelineId ? ParseType.Pipeline : ParseType.BuiltIn,
       parser_config: defaultParserValues,
     },
   });
@@ -258,8 +241,6 @@ export function ChunkMethodDialog({
         parserConfig?.pages?.map((x) => ({ from: x[0], to: x[1] })) ?? [];
       form.reset({
         parser_id: parserId || '',
-        pipeline_id: pipelineId || '',
-        parseType: pipelineId ? ParseType.Pipeline : ParseType.BuiltIn,
         parser_config: fillDefaultParserValue({
           pages: pages.length > 0 ? pages : [{ from: 1, to: 100000 }],
           ...omit(parserConfig, 'pages'),
@@ -283,20 +264,9 @@ export function ChunkMethodDialog({
     knowledgeDetails.parser_config,
     parserConfig,
     parserId,
-    pipelineId,
     useGraphRag,
     visible,
   ]);
-  const parseType = useWatch({
-    control: form.control,
-    name: 'parseType',
-    defaultValue: pipelineId ? ParseType.Pipeline : ParseType.BuiltIn,
-  });
-  useEffect(() => {
-    if (parseType === ParseType.BuiltIn) {
-      form.setValue('pipeline_id', '');
-    }
-  }, [parseType, form]);
   return (
     <Dialog open onOpenChange={hideModal}>
       <DialogContent className="max-w-[50vw] text-text-primary">
@@ -311,39 +281,33 @@ export function ChunkMethodDialog({
             id={FormId}
           >
             <div className="space-y-6">
-              <ParseTypeItem />
-              {parseType === ParseType.BuiltIn && <ChunkMethodItem />}
+              <ChunkMethodItem />
 
-              {showPages && parseType === ParseType.BuiltIn && (
-                <DynamicPageRange />
+              {showPages && <DynamicPageRange />}
+
+              {showPages && layoutRecognize && (
+                <FormField
+                  control={form.control}
+                  name="parser_config.task_page_size"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel
+                        tooltip={t('knowledgeDetails.taskPageSizeTip')}
+                      >
+                        {t('knowledgeDetails.taskPageSize')}
+                      </FormLabel>
+                      <FormControl>
+                        <Input {...field} type={'number'} min={1} max={128} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
-
-              {showPages &&
-                parseType === ParseType.BuiltIn &&
-                layoutRecognize && (
-                  <FormField
-                    control={form.control}
-                    name="parser_config.task_page_size"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel
-                          tooltip={t('knowledgeDetails.taskPageSizeTip')}
-                        >
-                          {t('knowledgeDetails.taskPageSize')}
-                        </FormLabel>
-                        <FormControl>
-                          <Input {...field} type={'number'} min={1} max={128} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
             </div>
 
-            {parseType === ParseType.BuiltIn && (
-              <>
-                <div className="space-y-6 border-t-0.5 border-border-button pt-6 empty:hidden">
+            <>
+              <div className="space-y-6 border-t-0.5 border-border-button pt-6 empty:hidden">
                   {showOne && (
                     <>
                       <LayoutRecognizeFormField showMineruOptions={false} />
@@ -364,9 +328,9 @@ export function ChunkMethodDialog({
                       <ChildrenDelimiterForm />
                     </>
                   )}
-                </div>
+              </div>
 
-                <div className="space-y-6 border-t-0.5 border-border-button pt-6 empty:hidden">
+              <div className="space-y-6 border-t-0.5 border-border-button pt-6 empty:hidden">
                   {selectedTag === DocumentParserType.Naive && (
                     <>
                       <EnableTocToggle />
@@ -388,23 +352,12 @@ export function ChunkMethodDialog({
                   {showExcelToHtml && (
                     <ExcelToHtmlFormField></ExcelToHtmlFormField>
                   )}
-                </div>
+              </div>
 
-                <div className="space-y-6 border-t-0.5 border-border-button pt-6 empty:hidden">
-                  {showEntityTypes && <EntityTypesFormField />}
-                </div>
-              </>
-            )}
-
-            <div className="space-y-6 empty:hidden">
-              {parseType === ParseType.Pipeline && (
-                <DataFlowSelect
-                  isMult={false}
-                  // toDataPipeline={navigateToAgents}
-                  formFieldName="pipeline_id"
-                />
-              )}
-            </div>
+              <div className="space-y-6 border-t-0.5 border-border-button pt-6 empty:hidden">
+                {showEntityTypes && <EntityTypesFormField />}
+              </div>
+            </>
           </form>
         </Form>
         <DialogFooter>

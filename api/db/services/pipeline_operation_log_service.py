@@ -13,7 +13,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-import json
 import logging
 import os
 from datetime import datetime, timedelta
@@ -67,8 +66,6 @@ class PipelineOperationLogService(CommonService):
             cls.model.document_id,
             cls.model.tenant_id,
             cls.model.kb_id,
-            cls.model.pipeline_id,
-            cls.model.pipeline_title,
             cls.model.parser_id,
             cls.model.document_name,
             cls.model.document_suffix,
@@ -78,7 +75,6 @@ class PipelineOperationLogService(CommonService):
             cls.model.progress_msg,
             cls.model.process_begin_at,
             cls.model.process_duration,
-            cls.model.dsl,
             cls.model.task_type,
             cls.model.operation_status,
             cls.model.avatar,
@@ -119,7 +115,7 @@ class PipelineOperationLogService(CommonService):
 
     @classmethod
     @DB.connection_context()
-    def create(cls, document_id, pipeline_id, task_type, task_id=None, referred_document_id=None, dsl: str = "{}"):
+    def create(cls, document_id, task_type, task_id=None, referred_document_id=None):
         if document_id != GRAPH_RAPTOR_FAKE_DOC_ID:
             referred_document_id = document_id
 
@@ -185,8 +181,6 @@ class PipelineOperationLogService(CommonService):
             document_id=document_id,  # GRAPH_RAPTOR_FAKE_DOC_ID or real document_id
             tenant_id=tenant_id,
             kb_id=document.kb_id,
-            pipeline_id=pipeline_id,
-            pipeline_title=title,
             parser_id=document.parser_id,
             document_name=document_name,
             document_suffix=document.suffix,
@@ -196,7 +190,6 @@ class PipelineOperationLogService(CommonService):
             progress_msg=progress_msg,
             process_begin_at=process_begin_at,
             process_duration=process_duration,
-            dsl=json.loads(dsl),
             task_type=task_type,
             operation_status=operation_status,
             avatar=avatar,
@@ -223,8 +216,8 @@ class PipelineOperationLogService(CommonService):
 
     @classmethod
     @DB.connection_context()
-    def record_pipeline_operation(cls, document_id, pipeline_id, task_type, task_id=None, referred_document_id=None):
-        return cls.create(document_id=document_id, pipeline_id=pipeline_id, task_type=task_type, task_id=task_id, referred_document_id=referred_document_id)
+    def record_pipeline_operation(cls, document_id, task_type, task_id=None, referred_document_id=None):
+        return cls.create(document_id=document_id, task_type=task_type, task_id=task_id, referred_document_id=referred_document_id)
 
     @classmethod
     @DB.connection_context()

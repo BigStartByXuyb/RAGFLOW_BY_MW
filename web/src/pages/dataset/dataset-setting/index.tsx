@@ -1,4 +1,3 @@
-import { DataFlowSelect } from '@/components/data-pipeline-select';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -9,8 +8,7 @@ import {
 } from '@/components/ui/card';
 import Divider from '@/components/ui/divider';
 import { Form } from '@/components/ui/form';
-import { FormLayout } from '@/constants/form';
-import { DocumentParserType, ParseType } from '@/constants/knowledge';
+import { DocumentParserType } from '@/constants/knowledge';
 import { PermissionRole } from '@/constants/permission';
 import { IConnector, IDataset } from '@/interfaces/database/dataset';
 import { useDataSourceInfo } from '@/pages/user-setting/data-source/constant';
@@ -25,7 +23,6 @@ import ChunkMethodLearnMore from './chunk-method-learn-more';
 import LinkDataSource, {
   IDataSourceNodeProps,
 } from './components/link-data-source';
-import { ParseTypeItem } from '@/components/parse-type-form-field';
 import { MainContainer } from './configuration-form-container';
 import { ChunkMethodItem } from './configuration/common-item';
 import { formSchema } from './form-schema';
@@ -109,8 +106,6 @@ export default function DatasetSettings() {
         enable_metadata: false,
         llm_id: '',
       },
-      pipeline_id: '',
-      parse_type: ParseType.BuiltIn,
       pagerank: 0,
       connectors: [],
     },
@@ -144,11 +139,6 @@ export default function DatasetSettings() {
 
       setSourceData(source_data);
 
-      form.setValue(
-        'parse_type',
-        knowledgeDetails.pipeline_id ? ParseType.Pipeline : ParseType.BuiltIn,
-      );
-      form.setValue('pipeline_id', knowledgeDetails.pipeline_id || '');
     }
   }, [knowledgeDetails, form]);
 
@@ -189,25 +179,10 @@ export default function DatasetSettings() {
     }
   };
 
-  const parseType = useWatch({
-    control: form.control,
-    name: 'parse_type',
-    defaultValue: knowledgeDetails.pipeline_id
-      ? ParseType.Pipeline
-      : ParseType.BuiltIn,
-  });
   const selectedTag = useWatch({
     name: 'chunk_method',
     control: form.control,
   });
-
-  useEffect(() => {
-    if (parseType === ParseType.BuiltIn) {
-      form.setValue('pipeline_id', '');
-    } else {
-      form.setValue('chunk_method', DocumentParserType.Naive);
-    }
-  }, [parseType, form]);
 
   const unbindFunc = (data: IDataSourceBase) => {
     if (data) {
@@ -280,23 +255,8 @@ export default function DatasetSettings() {
                     <div className="text-base font-medium text-text-primary">
                       {t('knowledgeConfiguration.dataPipeline')}
                     </div>
-                    <ParseTypeItem line={1} name="parse_type" />
-                    {parseType === ParseType.BuiltIn && (
-                      <ChunkMethodItem
-                        line={1}
-                        name="chunk_method"
-                      ></ChunkMethodItem>
-                    )}
-                    {parseType === ParseType.Pipeline && (
-                      <DataFlowSelect
-                        isMult={false}
-                        showToDataPipeline={true}
-                        formFieldName="pipeline_id"
-                        layout={FormLayout.Horizontal}
-                      />
-                    )}
-
-                    {parseType === ParseType.BuiltIn && <ChunkMethodForm />}
+                    <ChunkMethodItem line={1} name="chunk_method" />
+                    <ChunkMethodForm />
 
                     {/* <LinkDataPipeline
                     data={pipelineData}
@@ -330,9 +290,7 @@ export default function DatasetSettings() {
           </DataSetContext.Provider>
 
           <div className="flex-1 p-5 overflow-auto">
-            {parseType === ParseType.BuiltIn && (
-              <ChunkMethodLearnMore parserId={selectedTag} />
-            )}
+            <ChunkMethodLearnMore parserId={selectedTag} />
           </div>
         </CardContent>
       </Card>
