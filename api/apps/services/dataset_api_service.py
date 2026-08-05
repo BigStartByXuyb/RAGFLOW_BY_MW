@@ -271,6 +271,85 @@ def get_ingestion_summary(dataset_id: str, tenant_id: str):
     }
 
 
+def list_ingestion_logs(
+    dataset_id: str,
+    tenant_id: str,
+    page: int,
+    page_size: int,
+    orderby: str,
+    desc: bool,
+    operation_status: list = None,
+    create_date_from: str = None,
+    create_date_to: str = None,
+    log_type: str = "dataset",
+    keywords: str = None,
+):
+    """
+    List ingestion logs for a dataset.
+
+    :param dataset_id: dataset ID
+    :param tenant_id: tenant ID
+    :param page: page number
+    :param page_size: items per page
+    :param orderby: order by field
+    :param desc: descending order
+    :param operation_status: filter by operation status
+    :param create_date_from: filter start date
+    :param create_date_to: filter end date
+    :param log_type: "dataset" or "file"
+    :param keywords: search keywords for file logs
+    :return: (success, result) or (success, error_message)
+    """
+    if not dataset_id:
+        return False, 'Lack of "Dataset ID"'
+
+    if not KnowledgebaseService.accessible(dataset_id, tenant_id):
+        return False, "no authorization"
+
+    from api.db.services.pipeline_operation_log_service import PipelineOperationLogService
+
+    allowed_log_types = {"dataset", "file"}
+    if log_type not in allowed_log_types:
+        logging.warning(
+            "list_ingestion_logs invalid log_type: dataset_id=%s tenant_id=%s log_type=%s",
+            dataset_id,
+            tenant_id,
+            log_type,
+        )
+        return False, 'Invalid "log_type", expected "dataset" or "file"'
+
+    if log_type == "file":
+        logs, total = PipelineOperationLogService.get_file_logs_by_kb_id(dataset_id, page, page_size, orderby, desc, keywords, operation_status or [], None, None, create_date_from, create_date_to)
+    else:
+        logs, total = PipelineOperationLogService.get_dataset_logs_by_kb_id(dataset_id, page, page_size, orderby, desc, operation_status or [], create_date_from, create_date_to, keywords)
+    return True, {"total": total, "logs": logs}
+
+
+def get_ingestion_log(dataset_id: str, tenant_id: str, log_id: str):
+    """
+    Get a single ingestion log.
+
+    :param dataset_id: dataset ID
+    :param tenant_id: tenant ID
+    :param log_id: log ID
+    :return: (success, result) or (success, error_message)
+    """
+    if not dataset_id:
+        return False, 'Lack of "Dataset ID"'
+
+    if not KnowledgebaseService.accessible(dataset_id, tenant_id):
+        return False, "no authorization"
+
+    from api.db.services.pipeline_operation_log_service import PipelineOperationLogService
+
+    fields = PipelineOperationLogService.get_file_logs_fields()
+    log = PipelineOperationLogService.model.select(*fields).where((PipelineOperationLogService.model.id == log_id) & (PipelineOperationLogService.model.kb_id == dataset_id)).first()
+    if not log:
+        return False, "Log not found"
+
+    return True, log.to_dict()
+
+
 async def update_dataset(tenant_id: str, dataset_id: str, req: dict):
     """
     Update a dataset.
