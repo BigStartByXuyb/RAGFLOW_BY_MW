@@ -317,67 +317,9 @@ export default {
   getSystemConfig: `${restAPIv1}/system/config`,
   setLangfuseConfig: `${restAPIv1}/langfuse/api-key`,
 
-  // flow
-  listAgentTemplate: `${restAPIv1}/agents/templates`,
-  listAgents: `${restAPIv1}/agents`,
-  listAgentTags: `${restAPIv1}/agents/tags`,
-  updateAgentTags: (agentId: string) => `${restAPIv1}/agents/${agentId}/tags`,
-  createAgent: `${restAPIv1}/agents`,
-  updateAgent: (agentId: string) => `${restAPIv1}/agents/${agentId}`,
-  deleteAgent: (agentId: string) => `${restAPIv1}/agents/${agentId}`,
-  agentChatCompletion: `${restAPIv1}/agents/chat/completions`,
-  resetAgent: (agentId: string) => `${restAPIv1}/agents/${agentId}/reset`,
-  testDbConnect: `${restAPIv1}/agents/test_db_connection`,
-  getInputElements: `${webAPI}/canvas/input_elements`,
-  debug: (agentId: string, componentId: string) =>
-    `${restAPIv1}/agents/${agentId}/components/${componentId}/debug`,
-  trace: (agentId: string, messageId: string) =>
-    `${restAPIv1}/agents/${agentId}/logs/${messageId}`,
-  sharedTrace: (sharedId: string, messageId: string) =>
-    `${restAPIv1}/agentbots/${sharedId}/logs/${messageId}`,
-  cancelCanvas: (taskId: string) => `${restAPIv1}/tasks/${taskId}/cancel`,
-  // agent
-  inputForm: (agentId: string, componentId: string) =>
-    `${restAPIv1}/agents/${agentId}/components/${componentId}/input-form`,
-  fetchVersionList: (id: string) => `${restAPIv1}/agents/${id}/versions`,
-  fetchVersion: (agentId: string, versionId: string) =>
-    `${restAPIv1}/agents/${agentId}/versions/${versionId}`,
-  getAgent: (id: string) => `${restAPIv1}/agents/${id}`,
-  uploadAgentFile: (id?: string) => `${restAPIv1}/agents/${id}/upload`,
-  createAgentSession: (agentId: string) =>
-    `${restAPIv1}/agents/${agentId}/sessions`,
-  fetchAgentLogs: (canvasId: string) => `${webAPI}/canvas/${canvasId}/sessions`,
-  fetchAgentSessions: (agentId: string) =>
-    `${restAPIv1}/agents/${agentId}/sessions`,
-  fetchAgentSessionById: (agentId: string, sessionId: string) =>
-    `${restAPIv1}/agents/${agentId}/sessions/${sessionId}`,
-  fetchExternalAgentInputs: (canvasId: string) =>
-    `${restAPIv1}/agentbots/${canvasId}/inputs`,
-  prompt: `${restAPIv1}/agents/prompts`,
-  cancelDataflow: (id: string) => `${restAPIv1}/tasks/${id}/cancel`,
   getAttachmentFileDownload: (docId: string) =>
     `${restAPIv1}/agents/attachments/${docId}/download`,
-  getAttachmentFilePreview: ({
-    docId,
-    ext,
-    mimeType,
-    filename,
-  }: {
-    docId: string;
-    ext?: string;
-    mimeType?: string;
-    filename?: string;
-  }) => {
-    const params = new URLSearchParams();
-    if (ext) params.set('ext', ext);
-    if (mimeType) params.set('mime_type', mimeType);
-    if (filename) params.set('filename', filename);
-    const query = params.toString();
-    return `${restAPIv1}/agents/attachments/${docId}/preview${query ? `?${query}` : ''}`;
-  },
   downloadFile: `${restAPIv1}/agents/download`,
-  testWebhook: (id: string) => `${restAPIv1}/agents/${id}/webhook/test`,
-  fetchWebhookTrace: (id: string) => `${restAPIv1}/agents/${id}/webhook/logs`,
 
   // explore
 
