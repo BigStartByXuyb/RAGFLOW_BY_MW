@@ -27,6 +27,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { t } from 'i18next';
 import { RAGFlowSelectOptionType } from '../ui/select';
@@ -34,6 +39,7 @@ import { Separator } from '../ui/separator';
 
 export type SelectWithSearchOptionType = RAGFlowSelectOptionType & {
   description?: ReactNode;
+  tooltip?: ReactNode;
 };
 
 export type SelectWithSearchFlagOptionType = {
@@ -43,6 +49,7 @@ export type SelectWithSearchFlagOptionType = {
   options?: SelectWithSearchOptionType[];
   keywords?: string[];
   description?: ReactNode;
+  tooltip?: ReactNode;
 };
 
 export type SelectWithSearchFlagProps = {
@@ -311,51 +318,76 @@ export const SelectWithSearch = forwardRef<
                       heading={group.label}
                       className="mb-1"
                     >
-                      {group.options.map((option, optionIndex) => (
-                        <CommandItem
-                          key={
-                            option.value ||
-                            `option-${groupIndex}-${optionIndex}`
-                          }
-                          value={option.value}
-                          disabled={option.disabled}
-                          keywords={
-                            typeof option.label === 'string'
-                              ? [option.label]
-                              : []
-                          }
-                          onSelect={handleSelect}
-                          data-testid={
-                            optionTestIdPrefix && option.value
-                              ? `${optionTestIdPrefix}${option.value}`
-                              : 'combobox-option'
-                          }
-                          className={cn(
-                            'relative flex flex-col min-h-10',
-                            option.description
-                              ? 'items-start gap-1'
-                              : 'justify-center items-start',
-                            value === option.value ? 'bg-bg-card' : '',
-                          )}
-                        >
-                          <span className="leading-none">{option.label}</span>
-                          {option.description && (
-                            <span className="text-text-secondary text-xs leading-none">
-                              {option.description}
+                      {group.options.map((option, optionIndex) => {
+                        const item = (
+                          <CommandItem
+                            key={
+                              option.value ||
+                              `option-${groupIndex}-${optionIndex}`
+                            }
+                            value={option.value}
+                            disabled={option.disabled}
+                            keywords={
+                              typeof option.label === 'string'
+                                ? [option.label]
+                                : []
+                            }
+                            onSelect={handleSelect}
+                            data-testid={
+                              optionTestIdPrefix && option.value
+                                ? `${optionTestIdPrefix}${option.value}`
+                                : 'combobox-option'
+                            }
+                            className={cn(
+                              'relative flex flex-col min-h-10',
+                              option.description
+                                ? 'items-start gap-1'
+                                : 'justify-center items-start',
+                              value === option.value ? 'bg-bg-card' : '',
+                            )}
+                          >
+                            <span className="leading-none">
+                              {option.label}
                             </span>
-                          )}
-                          {value === option.value && (
-                            <CheckIcon
-                              size={16}
-                              className="absolute top-1/2 -translate-y-1/2 right-2"
-                            />
-                          )}
-                        </CommandItem>
-                      ))}
+                            {option.description && (
+                              <span className="text-text-secondary text-xs leading-none">
+                                {option.description}
+                              </span>
+                            )}
+                            {value === option.value && (
+                              <CheckIcon
+                                size={16}
+                                className="absolute top-1/2 -translate-y-1/2 right-2"
+                              />
+                            )}
+                          </CommandItem>
+                        );
+
+                        if (!option.tooltip) {
+                          return item;
+                        }
+
+                        return (
+                          <Tooltip
+                            key={
+                              option.value ||
+                              `option-tip-${groupIndex}-${optionIndex}`
+                            }
+                            delayDuration={300}
+                          >
+                            <TooltipTrigger asChild>
+                              <div>{item}</div>
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                              {option.tooltip}
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
                     </CommandGroup>
                   );
                 } else {
-                  return (
+                  const item = (
                     <CommandItem
                       key={group.value || `item-${groupIndex}`}
                       value={group.value}
@@ -393,6 +425,24 @@ export const SelectWithSearch = forwardRef<
                         />
                       )}
                     </CommandItem>
+                  );
+
+                  if (!group.tooltip) {
+                    return item;
+                  }
+
+                  return (
+                    <Tooltip
+                      key={group.value || `item-tip-${groupIndex}`}
+                      delayDuration={300}
+                    >
+                      <TooltipTrigger asChild>
+                        <div>{item}</div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        {group.tooltip}
+                      </TooltipContent>
+                    </Tooltip>
                   );
                 }
               })}

@@ -56,15 +56,6 @@ export const initialLlmBaseValues = {
   max_tokens: 256,
 };
 
-export enum AgentCategory {
-  AgentCanvas = 'agent_canvas',
-  DataflowCanvas = 'dataflow_canvas',
-}
-
-export enum AgentQuery {
-  Category = 'category',
-}
-
 export enum Operator {
   Begin = 'Begin',
   Retrieval = 'Retrieval',
