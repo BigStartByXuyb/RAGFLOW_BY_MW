@@ -104,6 +104,7 @@ export const useFetchTenantInfo = (
 export const useSelectParserList = (): Array<{
   value: string;
   label: string;
+  tooltip?: string;
 }> => {
   const { data: tenantInfo } = useFetchTenantInfo(true);
   const { t } = useTranslation();
@@ -129,36 +130,89 @@ export const useSelectParserList = (): Array<{
     enabled: backendLang === 'go',
   });
 
+  const parserTip = useCallback(
+    (parserId: string) => {
+      const key = `knowledgeConfiguration.parserTip.${parserId}`;
+      const translated = t(key);
+      return translated !== key ? translated : undefined;
+    },
+    [t],
+  );
+
   const defaultParsers = useMemo(
     () => [
-      { value: 'naive', label: t('knowledgeConfiguration.parserLabel.naive') },
-      { value: 'qa', label: t('knowledgeConfiguration.parserLabel.qa') },
+      {
+        value: 'naive',
+        label: t('knowledgeConfiguration.parserLabel.naive'),
+        tooltip: parserTip('naive'),
+      },
+      {
+        value: 'qa',
+        label: t('knowledgeConfiguration.parserLabel.qa'),
+        tooltip: parserTip('qa'),
+      },
       {
         value: 'resume',
         label: t('knowledgeConfiguration.parserLabel.resume'),
+        tooltip: parserTip('resume'),
       },
       {
         value: 'manual',
         label: t('knowledgeConfiguration.parserLabel.manual'),
+        tooltip: parserTip('manual'),
       },
-      { value: 'table', label: t('knowledgeConfiguration.parserLabel.table') },
-      { value: 'paper', label: t('knowledgeConfiguration.parserLabel.paper') },
-      { value: 'book', label: t('knowledgeConfiguration.parserLabel.book') },
-      { value: 'laws', label: t('knowledgeConfiguration.parserLabel.laws') },
+      {
+        value: 'table',
+        label: t('knowledgeConfiguration.parserLabel.table'),
+        tooltip: parserTip('table'),
+      },
+      {
+        value: 'paper',
+        label: t('knowledgeConfiguration.parserLabel.paper'),
+        tooltip: parserTip('paper'),
+      },
+      {
+        value: 'book',
+        label: t('knowledgeConfiguration.parserLabel.book'),
+        tooltip: parserTip('book'),
+      },
+      {
+        value: 'laws',
+        label: t('knowledgeConfiguration.parserLabel.laws'),
+        tooltip: parserTip('laws'),
+      },
       {
         value: 'presentation',
         label: t('knowledgeConfiguration.parserLabel.presentation'),
+        tooltip: parserTip('presentation'),
       },
       {
         value: 'picture',
         label: t('knowledgeConfiguration.parserLabel.picture'),
+        tooltip: parserTip('picture'),
       },
-      { value: 'one', label: t('knowledgeConfiguration.parserLabel.one') },
-      { value: 'audio', label: t('knowledgeConfiguration.parserLabel.audio') },
-      { value: 'email', label: t('knowledgeConfiguration.parserLabel.email') },
-      { value: 'tag', label: t('knowledgeConfiguration.parserLabel.tag') },
+      {
+        value: 'one',
+        label: t('knowledgeConfiguration.parserLabel.one'),
+        tooltip: parserTip('one'),
+      },
+      {
+        value: 'audio',
+        label: t('knowledgeConfiguration.parserLabel.audio'),
+        tooltip: parserTip('audio'),
+      },
+      {
+        value: 'email',
+        label: t('knowledgeConfiguration.parserLabel.email'),
+        tooltip: parserTip('email'),
+      },
+      {
+        value: 'tag',
+        label: t('knowledgeConfiguration.parserLabel.tag'),
+        tooltip: parserTip('tag'),
+      },
     ],
-    [t],
+    [t, parserTip],
   );
 
   const parserList = useMemo(() => {
@@ -181,6 +235,7 @@ export const useSelectParserList = (): Array<{
         return pipelineList.map((item) => ({
           value: item.id,
           label: labelFromAPI(item.id, item.title),
+          tooltip: parserTip(item.id) ?? item.description,
         }));
       }
     }
@@ -196,9 +251,9 @@ export const useSelectParserList = (): Array<{
 
     return filteredArray.map((x) => {
       const arr = x.split(':');
-      return { value: arr[0], label: arr[1] };
+      return { value: arr[0], label: arr[1], tooltip: parserTip(arr[0]) };
     });
-  }, [tenantInfo, defaultParsers, backendLang, pipelineListData, t]);
+  }, [tenantInfo, defaultParsers, backendLang, pipelineListData, t, parserTip]);
 
   return parserList;
 };

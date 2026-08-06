@@ -498,14 +498,15 @@ def queue_tasks(doc: dict, bucket: str, name: str, priority: int):
     suffix = "common" if doc["parser_id"] != "resume" else "resume"
 
     chunking_config = DocumentService.get_chunking_config(doc["id"])
+    for k in ["raptor", "graphrag"]:
+        chunking_config.get("parser_config", {}).pop(k, None)
+
+    base_hasher = xxhash.xxh64()
+    for field in sorted(chunking_config.keys()):
+        base_hasher.update(str(chunking_config[field]).encode("utf-8"))
+
     for task in parse_task_array:
-        hasher = xxhash.xxh64()
-        for field in sorted(chunking_config.keys()):
-            if field == "parser_config":
-                for k in ["raptor", "graphrag"]:
-                    if k in chunking_config[field]:
-                        del chunking_config[field][k]
-            hasher.update(str(chunking_config[field]).encode("utf-8"))
+        hasher = base_hasher.copy()
         for field in ["doc_id", "from_page", "to_page"]:
             hasher.update(str(task.get(field, "")).encode("utf-8"))
         task_digest = hasher.hexdigest()

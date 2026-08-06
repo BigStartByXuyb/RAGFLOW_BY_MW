@@ -22,7 +22,15 @@ export function BuiltinPipelineItem({
   const builtinPipelineOptions = [
     'naive', 'book', 'email', 'laws', 'manual', 'one', 'paper',
     'picture', 'presentation', 'qa', 'table', 'tag', 'resume',
-  ].map((value) => ({ label: value, value }));
+  ].map((value) => {
+    const tipKey = `knowledgeConfiguration.parserTip.${value}`;
+    const tooltip = t(tipKey);
+    return {
+      label: value,
+      value,
+      tooltip: tooltip !== tipKey ? tooltip : undefined,
+    };
+  });
 
   return (
     <FormField
