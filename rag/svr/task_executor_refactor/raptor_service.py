@@ -41,8 +41,6 @@ from rag.nlp import rag_tokenizer, search
 from rag.utils.raptor_utils import (
     collect_raptor_chunk_ids,
     collect_raptor_methods,
-    get_raptor_clustering_method,
-    get_raptor_tree_builder,
     get_skip_reason,
     make_raptor_summary_chunk_id,
     should_skip_raptor,
@@ -118,8 +116,8 @@ class RaptorService:
             Tuple of (chunks, token_count, cleanup_raptor_chunks).
         """
         raptor_config = kb_parser_config.get("raptor", {})
-        tree_builder = get_raptor_tree_builder(raptor_config)
-        clustering_method = get_raptor_clustering_method(raptor_config)
+        tree_builder = "raptor"
+        clustering_method = "watershed"
         vctr_nm = "q_%d_vec" % vector_size
 
         res = []

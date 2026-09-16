@@ -48,8 +48,6 @@ from rag.utils.base64_image import image2id
 from rag.utils.raptor_utils import (
     collect_raptor_chunk_ids,
     collect_raptor_methods,
-    get_raptor_clustering_method,
-    get_raptor_tree_builder,
     get_skip_reason,
     make_raptor_summary_chunk_id,
     should_skip_raptor,
@@ -879,8 +877,8 @@ async def run_raptor_for_kb(row, kb_parser_config, chat_mdl, embd_mdl, vector_si
 
     raptor_config = kb_parser_config.get("raptor", {})
     raptor_ext_config = raptor_config.get("ext") or {}
-    tree_builder = get_raptor_tree_builder(raptor_config)
-    clustering_method = get_raptor_clustering_method(raptor_config)
+    tree_builder = "raptor"
+    clustering_method = "watershed"
     vctr_nm = "q_%d_vec" % vector_size
 
     res = []

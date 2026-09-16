@@ -20,6 +20,7 @@ from enum import StrEnum
 SERVICE_CONF = "service_conf.yaml"
 RAG_FLOW_SERVICE_NAME = "ragflow"
 
+
 class CustomEnum(Enum):
     @classmethod
     def valid(cls, value):
@@ -138,13 +139,16 @@ class FileSource(StrEnum):
     LOCAL = ""
     KNOWLEDGEBASE = "knowledgebase"
     RSS = "rss"
+    SITEMAP = "sitemap"
     S3 = "s3"
     NOTION = "notion"
     REST_API = "rest_api"
+    XQUIK = "xquik"
     DISCORD = "discord"
     CONFLUENCE = "confluence"
     GMAIL = "gmail"
     GOOGLE_DRIVE = "google_drive"
+    FEISHU_WIKI = "feishu_wiki"
     JIRA = "jira"
     SHAREPOINT = "sharepoint"
     SLACK = "slack"
@@ -162,6 +166,7 @@ class FileSource(StrEnum):
     GITLAB = "gitlab"
     IMAP = "imap"
     BITBUCKET = "bitbucket"
+    AZURE_DEVOPS = "azure_devops"
     ZENDESK = "zendesk"
     SEAFILE = "seafile"
     MYSQL = "mysql"
@@ -181,7 +186,9 @@ class PipelineTaskType(StrEnum):
     GRAPH_RAG = "GraphRAG"
     MINDMAP = "Mindmap"
     MEMORY = "Memory"
-    ARTIFACT = "Artifact"
+    # Member name kept as ARTIFACT for back-compat; value is "Wiki" so the
+    # runtime task_type (``.lower()`` == "wiki") matches the wiki index/task type.
+    ARTIFACT = "Wiki"
     SKILL = "Skill"
     # KB-wide structure-graph merge tasks (rebuild_dataset_structure_graph_json).
     STRUCTURE_GRAPH = "StructureGraph"
