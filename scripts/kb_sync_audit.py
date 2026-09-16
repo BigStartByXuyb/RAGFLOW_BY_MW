@@ -81,7 +81,19 @@ IMPORT_ALIASES = {
     "tavily": "tavily-python",
     "zai": "zai-sdk",
     "elastic_transport": "elastic-transport",
+    "atlassian": "atlassian-python-api",
+    "azure": "azure-storage-blob",
+    "github": "pygithub",
+    "moodle": "moodlepy",
+    "box_sdk_gen": "boxsdk",
+    "pkg_resources": "setuptools",
+    "playhouse": "peewee",
+    "Cryptodome": "pycryptodomex",
 }
+
+# Imported lazily and intentionally outside the lock file: downloaded by
+# `ragflow_deps/download_deps.py` or provided by an optional runtime image.
+OPTIONAL_IMPORTS = {"torch", "jina", "ais_bench", "imageio_ffmpeg", "ffmpeg"}
 
 SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", ".playwright-cli", ".playwright-mcp"}
 
@@ -90,12 +102,16 @@ SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", ".playwright-cli", 
 SCANNED_SUFFIXES = (".py", ".ts", ".tsx", ".js", ".jsx", ".vue")
 SCAN_EXCLUDES = {"scripts/kb_sync_audit.py"}
 
+# Lines that *delete* removed-feature state (migrations, cleanups) are allowed
+# to name the removed tables/columns.
+REMOVAL_STATEMENTS = re.compile(r"drop_table_if_exists|alter_db_drop|drop_column_if_exists")
+
 
 def git(*args: str) -> str:
     return subprocess.run(["git", *args], capture_output=True, encoding="utf-8", errors="replace").stdout
 
 
-def changed_files() -> set[str]:
+def working_tree_files() -> set[str]:
     files = set()
     for line in git("status", "--porcelain").splitlines():
         path = line[3:].strip()
@@ -103,6 +119,10 @@ def changed_files() -> set[str]:
             path = path.split(" -> ")[1]
         files.add(path.replace("\\", "/"))
     return files
+
+
+def rev_range_files(rev_range: str) -> set[str]:
+    return {f.replace("\\", "/") for f in git("diff", "--name-only", "--diff-filter=d", rev_range).splitlines() if f}
 
 
 def walk_python() -> list[str]:
@@ -202,9 +222,16 @@ def check_removed_surfaces(files: set[str]) -> list[str]:
     for rel in sorted(files):
         if rel in SCAN_EXCLUDES or not rel.endswith(SCANNED_SUFFIXES) or not os.path.isfile(rel):
             continue
-        for lineno, line in enumerate(open(rel, encoding="utf-8", errors="replace"), 1):
+        lines = open(rel, encoding="utf-8", errors="replace").read().splitlines()
+        for index, line in enumerate(lines):
+            # A statement that deletes removed-feature state may name it, either
+            # on its own line or on the line right after (e.g. a for-loop header
+            # followed by the drop call).
+            window = "\n".join(lines[index : index + 2])
+            if REMOVAL_STATEMENTS.search(window):
+                continue
             if pattern.search(line):
-                hits.append(f"{rel}:{lineno}: {line.strip()[:140]}")
+                hits.append(f"{rel}:{index + 1}: {line.strip()[:140]}")
     return hits
 
 
@@ -230,7 +257,7 @@ def check_dependencies(files: set[str], lock_path: str) -> list[str]:
             elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
                 roots.add(node.module.split(".")[0])
         for root in roots:
-            if root in local or root in stdlib or root.startswith("_"):
+            if root in local or root in stdlib or root in OPTIONAL_IMPORTS or root.startswith("_"):
                 continue
             candidates = {root.lower().replace("_", "-"), root.lower().replace("_", "-") + "-python"}
             if root in IMPORT_ALIASES:
@@ -243,9 +270,10 @@ def check_dependencies(files: set[str], lock_path: str) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lock", help="path to the upstream uv.lock for the dependency check")
+    parser.add_argument("--range", dest="rev_range", help="audit a commit range (e.g. main..HEAD) instead of the working tree")
     args = parser.parse_args()
 
-    files = changed_files()
+    files = rev_range_files(args.rev_range) if args.rev_range else working_tree_files()
     print(f"auditing {len(files)} changed files")
 
     sections = [

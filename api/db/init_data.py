@@ -105,6 +105,8 @@ def update_document_number_in_init():
 
 
 def add_compilation_templates():
+    CompilationTemplateService.ensure_table()
+    CompilationTemplateService.filter_delete([CompilationTemplateService.model.is_builtin])
     CompilationTemplateService.seed_builtins_from_files()
 
 

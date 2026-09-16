@@ -27,7 +27,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import importlib
-import json
 import logging
 import threading
 
@@ -47,6 +46,47 @@ _BUNDLED_CHANNELS = (
 
 # How often (seconds) to reconcile running channels against the database.
 _RECONCILE_INTERVAL_SECS = 10
+
+
+def _remove_reasoning_content(txt: str) -> str:
+    """Strip ``<think>...</think>`` reasoning blocks from a reply.
+
+    Mirrors ``LLMBundle._remove_reasoning_content`` (and the shared Go
+    ``StripThinkTrailing`` helper): everything through the last ``</think>``
+    marker is reasoning, and only what follows is shown to the end user.
+    """
+    if not txt:
+        return txt
+    first_think_start = txt.find("<think>")
+    if first_think_start == -1:
+        return txt
+    last_think_end = txt.rfind("</think>")
+    if last_think_end == -1 or last_think_end < first_think_start:
+        return txt
+    return txt[last_think_end + len("</think>") :]
+
+
+async def _send_thinking_message(ch, msg) -> None:
+    """Send a lightweight "thinking" placeholder before the real reply (WeCom only)."""
+    if ch.channel_id != "wecom":
+        return
+    from api.channels.core.base import OutgoingMessage
+
+    try:
+        await ch.send(
+            OutgoingMessage(
+                chat_id=msg.chat_id,
+                text="🤔 开始思考...",
+                reply_to_message_id=msg.message_id or None,
+            )
+        )
+    except Exception:
+        LOGGER.warning(
+            "[%s:%s] failed to send thinking placeholder",
+            ch.channel_id,
+            ch.account_id,
+            exc_info=True,
+        )
 
 
 def _register_channels() -> None:
@@ -93,17 +133,16 @@ def _build_one(account_id: str, channel: str, credential: dict):
 
 
 def _make_chat_handler(ch):
-    """Build the inbound-message handler bound to a single channel.
+    """Build the inbound-message handler bound to a chat assistant or Agent.
 
     Mirrors the non-streaming path of ``session_completion``: the message is
     appended to a per-end-user conversation under the dialog connected to the
     bot, a RAG completion is run against that dialog, and the answer is sent
     back. The connected dialog is resolved per message, so connection changes
     take effect immediately without restarting the channel. Channels with no
-    connected dialog ignore inbound messages.
+    connected target ignore inbound messages.
     """
     from api.channels.core.base import IncomingMessage, OutgoingMessage
-
     from api.db.services.chat_channel_service import ChatChannelService
     from api.db.services.conversation_service import ConversationService, structure_answer
     from api.db.services.dialog_service import DialogService, async_chat
@@ -113,11 +152,11 @@ def _make_chat_handler(ch):
         if not (msg.text or "").strip():
             return
 
-        # account_id == chat_channel.id; re-read so a re-connected dialog applies live.
+        # account_id == chat_channel.id; re-read so target changes apply live.
         e, cc = ChatChannelService.get_by_id(ch.account_id)
         if not e or not cc.chat_id:
             LOGGER.info(
-                "[%s:%s] no dialog connected; ignoring message",
+                "[%s:%s] no assistant connected; ignoring message",
                 ch.channel_id,
                 ch.account_id,
             )
@@ -150,6 +189,8 @@ def _make_chat_handler(ch):
                 continue
             history.append(m)
 
+        await _send_thinking_message(ch, msg)
+
         answer_text = ""
         try:
             chat_kwargs = {"quote": False}
@@ -168,7 +209,7 @@ def _make_chat_handler(ch):
             await ch.send(
                 OutgoingMessage(
                     chat_id=msg.chat_id,
-                    text=answer_text,
+                    text=_remove_reasoning_content(answer_text),
                     reply_to_message_id=msg.message_id or None,
                 )
             )
@@ -219,13 +260,17 @@ async def _start_channel(running: dict, account_id: str, channel: str, credentia
     return True
 
 
-async def _reconcile(running: dict, failed: dict) -> None:
+async def _reconcile(running: dict, failed: dict, stop_event: threading.Event) -> None:
     """Diff desired (DB) vs running channels and apply start/stop/restart.
 
     ``failed`` remembers configs that could not be started so they are not
     retried (and re-logged) every tick until their credentials change.
     """
+    if stop_event.is_set():
+        return
     desired = await asyncio.to_thread(_desired_channels)
+    if stop_event.is_set():
+        return
 
     # Stop channels that were removed or whose credentials/type changed.
     for account_id in list(running.keys()):
@@ -266,7 +311,12 @@ async def run_channels(stop_event: threading.Event) -> None:
     try:
         while not stop_event.is_set():
             try:
-                await _reconcile(running, failed)
+                await _reconcile(running, failed, stop_event)
+            except RuntimeError as ex:
+                if stop_event.is_set():
+                    LOGGER.info("chat channel reconcile stopped")
+                    break
+                LOGGER.error("chat channel reconcile failed: %s", ex)
             except Exception as ex:
                 LOGGER.error("chat channel reconcile failed: %s", ex)
 
