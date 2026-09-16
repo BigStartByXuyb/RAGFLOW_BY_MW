@@ -600,10 +600,8 @@ class DocumentService(CommonService):
         truth). Deletion is not a hot path, so the module import cost is
         acceptable here.
         """
-        from rag.svr.task_executor_refactor.dataset_wiki_generator import (
-            WIKI_MAP_COMPILE_KWD,
-            WIKI_DERIVED_COMPILE_KWDS,
-        )
+        from rag.advanced_rag.knowlege_compile.wiki import WIKI_MAP_COMPILE_KWD
+        from rag.svr.task_executor_refactor.dataset_wiki_generator import WIKI_DERIVED_COMPILE_KWDS
 
         index = search.index_name(tenant_id)
         if not settings.docStoreConn.index_exist(index, doc.kb_id):

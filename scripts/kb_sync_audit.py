@@ -89,11 +89,16 @@ IMPORT_ALIASES = {
     "pkg_resources": "setuptools",
     "playhouse": "peewee",
     "Cryptodome": "pycryptodomex",
+    "discord": "discord-py",
+    "gitlab": "python-gitlab",
+    "googleapiclient": "google-api-python-client",
+    "mysql": "mysql-connector-python",
+    "office365": "office365-rest-python-client",
 }
 
 # Imported lazily and intentionally outside the lock file: downloaded by
 # `ragflow_deps/download_deps.py` or provided by an optional runtime image.
-OPTIONAL_IMPORTS = {"torch", "jina", "ais_bench", "imageio_ffmpeg", "ffmpeg"}
+OPTIONAL_IMPORTS = {"torch", "jina", "ais_bench", "imageio_ffmpeg", "ffmpeg", "pymssql"}
 
 SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", ".playwright-cli", ".playwright-mcp"}
 
@@ -216,6 +221,45 @@ def check_stale_imports(files: set[str]) -> list[str]:
     return problems
 
 
+def check_batch_imports(files: set[str]) -> list[str]:
+    """Verify that imports inside the batch's own files still resolve locally."""
+    local_roots = {d for d in os.listdir(".") if os.path.isdir(d) and not d.startswith(".")}
+    problems = []
+    for rel in sorted(f for f in files if f.endswith(".py")):
+        if not os.path.isfile(rel):
+            continue
+        try:
+            tree = ast.parse(open(rel, encoding="utf-8", errors="replace").read())
+        except Exception:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                modules = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                if node.level or not node.module:
+                    continue
+                modules = [node.module]
+            else:
+                continue
+            for module in modules:
+                if module.split(".")[0] not in local_roots:
+                    continue
+                target = module_path(module)
+                if target is None:
+                    problems.append(f"{rel}:{node.lineno}: module '{module}' does not exist")
+                    continue
+                if isinstance(node, ast.ImportFrom) and not has_star_import(module):
+                    names = module_names(module)
+                    base = os.path.dirname(target)
+                    for name in node.names:
+                        if name.name == "*" or name.name in names:
+                            continue
+                        if os.path.isfile(os.path.join(base, f"{name.name}.py")) or os.path.isdir(os.path.join(base, name.name)):
+                            continue
+                        problems.append(f"{rel}:{node.lineno}: {module} has no '{name.name}'")
+    return problems
+
+
 def check_removed_surfaces(files: set[str]) -> list[str]:
     pattern = re.compile("|".join(REMOVED_PATTERNS))
     hits = []
@@ -278,6 +322,7 @@ def main() -> int:
 
     sections = [
         ("syntax errors", check_syntax(files)),
+        ("unresolved imports inside the batch", check_batch_imports(files)),
         ("stale imports into adopted modules", check_stale_imports(files)),
         ("references to removed agent/DataFlow surfaces", check_removed_surfaces(files)),
     ]
