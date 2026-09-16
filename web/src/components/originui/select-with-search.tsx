@@ -33,9 +33,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { t } from 'i18next';
 import { RAGFlowSelectOptionType } from '../ui/select';
 import { Separator } from '../ui/separator';
+import { useTranslation } from 'react-i18next';
 
 export type SelectWithSearchOptionType = RAGFlowSelectOptionType & {
   description?: ReactNode;
@@ -62,7 +62,10 @@ export type SelectWithSearchFlagProps = {
   placeholder?: string;
   emptyData?: string;
   allowCustomValue?: boolean;
-  onNoMatchEnter?(searchValue: string): void;
+  // Always show the search input even with few options
+  alwaysShowSearch?: boolean;
+  // Return false to veto selecting the custom value on Enter
+  onNoMatchEnter?(searchValue: string): boolean | void;
   disableAutoSelectOnEnter?: boolean;
   testId?: string;
   optionTestIdPrefix?: string;
@@ -133,9 +136,10 @@ export const SelectWithSearch = forwardRef<
       triggerClassName,
       allowClear = false,
       disabled = false,
-      placeholder = t('common.selectPlaceholder'),
-      emptyData = t('common.noDataFound'),
+      placeholder,
+      emptyData,
       allowCustomValue = false,
+      alwaysShowSearch = false,
       onNoMatchEnter,
       disableAutoSelectOnEnter = false,
       testId,
@@ -143,6 +147,9 @@ export const SelectWithSearch = forwardRef<
     },
     ref,
   ) => {
+    const { t } = useTranslation();
+    const resolvedPlaceholder = placeholder ?? t('common.selectPlaceholder');
+    const resolvedEmptyData = emptyData ?? t('common.noDataFound');
     const id = useId();
     const [open, setOpen] = useState<boolean>(false);
     const [value, setValue] = useState<string>('');
@@ -171,7 +178,7 @@ export const SelectWithSearch = forwardRef<
     }, [options, value]);
 
     const showSearch = useMemo(() => {
-      if (allowCustomValue) {
+      if (allowCustomValue || alwaysShowSearch) {
         return true;
       }
       if (Array.isArray(options) && options.length > 5) {
@@ -184,7 +191,7 @@ export const SelectWithSearch = forwardRef<
         return optionsNum > 5;
       }
       return false;
-    }, [allowCustomValue, options]);
+    }, [allowCustomValue, alwaysShowSearch, options]);
 
     const hasCustomSearchValue = useMemo(() => {
       const customValue = searchValue.trim();
@@ -228,7 +235,10 @@ export const SelectWithSearch = forwardRef<
             setSearchValue('');
             setOpen(false);
           } else if (!hasMatchingOptions(options, keywords)) {
-            onNoMatchEnter?.(keywords);
+            if (onNoMatchEnter?.(keywords) === false) {
+              // Vetoed: prevent cmdk from selecting the custom value item
+              e.preventDefault();
+            }
           }
         }
       },
@@ -256,11 +266,11 @@ export const SelectWithSearch = forwardRef<
             )}
           >
             {selectLabel || value ? (
-              <span className="flex min-w-0 options-center gap-2 truncate">
+              <span className="flex min-w-0 options-center gap-2 truncate text-text-primary">
                 {selectLabel || value}
               </span>
             ) : (
-              <span className="text-text-disabled">{placeholder}</span>
+              <span className="text-text-disabled">{resolvedPlaceholder}</span>
             )}
             <div className="flex items-center justify-between">
               {value && allowClear && (
@@ -290,8 +300,12 @@ export const SelectWithSearch = forwardRef<
           <Command className="p-5" filter={filterFn}>
             {showSearch && (
               <CommandInput
-                placeholder={t('common.search') + '...'}
-                className=" placeholder:text-text-disabled"
+                placeholder={
+                  allowCustomValue
+                    ? t('common.searchOrEnterToAdd') + '...'
+                    : t('common.search') + '...'
+                }
+                className="placeholder:text-text-disabled"
                 value={searchValue}
                 onValueChange={setSearchValue}
                 onKeyDown={handleInputKeyDown}
@@ -299,13 +313,15 @@ export const SelectWithSearch = forwardRef<
             )}
             <CommandList className="mt-2 outline-none">
               <CommandEmpty>
-                <div dangerouslySetInnerHTML={{ __html: emptyData }}></div>
+                <div
+                  dangerouslySetInnerHTML={{ __html: resolvedEmptyData }}
+                ></div>
               </CommandEmpty>
               {hasCustomSearchValue && (
                 <CommandItem
                   value={searchValue.trim()}
                   onSelect={handleSelect}
-                  className="mb-1 min-h-10"
+                  className="mb-1 min-h-10 data-[selected='true']:bg-card-soft"
                 >
                   <span className="leading-none">{searchValue.trim()}</span>
                 </CommandItem>
@@ -318,72 +334,47 @@ export const SelectWithSearch = forwardRef<
                       heading={group.label}
                       className="mb-1"
                     >
-                      {group.options.map((option, optionIndex) => {
-                        const item = (
-                          <CommandItem
-                            key={
-                              option.value ||
-                              `option-${groupIndex}-${optionIndex}`
-                            }
-                            value={option.value}
-                            disabled={option.disabled}
-                            keywords={
-                              typeof option.label === 'string'
-                                ? [option.label]
-                                : []
-                            }
-                            onSelect={handleSelect}
-                            data-testid={
-                              optionTestIdPrefix && option.value
-                                ? `${optionTestIdPrefix}${option.value}`
-                                : 'combobox-option'
-                            }
-                            className={cn(
-                              'relative flex flex-col min-h-10',
-                              option.description
-                                ? 'items-start gap-1'
-                                : 'justify-center items-start',
-                              value === option.value ? 'bg-bg-card' : '',
-                            )}
-                          >
-                            <span className="leading-none">
-                              {option.label}
+                      {group.options.map((option, optionIndex) => (
+                        <CommandItem
+                          key={
+                            option.value ||
+                            `option-${groupIndex}-${optionIndex}`
+                          }
+                          value={option.value}
+                          disabled={option.disabled}
+                          keywords={
+                            typeof option.label === 'string'
+                              ? [option.label]
+                              : []
+                          }
+                          onSelect={handleSelect}
+                          data-testid={
+                            optionTestIdPrefix && option.value
+                              ? `${optionTestIdPrefix}${option.value}`
+                              : 'combobox-option'
+                          }
+                          className={cn(
+                            "relative flex flex-col min-h-10 pr-8 data-[selected='true']:bg-card-soft",
+                            option.description
+                              ? 'items-start gap-1'
+                              : 'justify-center items-start',
+                            value === option.value ? 'bg-bg-card' : '',
+                          )}
+                        >
+                          <span className="leading-none">{option.label}</span>
+                          {option.description && (
+                            <span className="text-text-secondary text-xs leading-none">
+                              {option.description}
                             </span>
-                            {option.description && (
-                              <span className="text-text-secondary text-xs leading-none">
-                                {option.description}
-                              </span>
-                            )}
-                            {value === option.value && (
-                              <CheckIcon
-                                size={16}
-                                className="absolute top-1/2 -translate-y-1/2 right-2"
-                              />
-                            )}
-                          </CommandItem>
-                        );
-
-                        if (!option.tooltip) {
-                          return item;
-                        }
-
-                        return (
-                          <Tooltip
-                            key={
-                              option.value ||
-                              `option-tip-${groupIndex}-${optionIndex}`
-                            }
-                            delayDuration={300}
-                          >
-                            <TooltipTrigger asChild>
-                              <div>{item}</div>
-                            </TooltipTrigger>
-                            <TooltipContent side="right">
-                              {option.tooltip}
-                            </TooltipContent>
-                          </Tooltip>
-                        );
-                      })}
+                          )}
+                          {value === option.value && (
+                            <CheckIcon
+                              size={16}
+                              className="absolute top-1/2 -translate-y-1/2 right-2"
+                            />
+                          )}
+                        </CommandItem>
+                      ))}
                     </CommandGroup>
                   );
                 } else {
@@ -403,7 +394,7 @@ export const SelectWithSearch = forwardRef<
                           : 'combobox-option'
                       }
                       className={cn(
-                        'relative flex flex-col min-h-10 mb-1',
+                        "relative flex flex-col min-h-10 mb-1 pr-8 data-[selected='true']:bg-card-soft",
                         group.description
                           ? 'items-start gap-1'
                           : 'justify-center items-start',

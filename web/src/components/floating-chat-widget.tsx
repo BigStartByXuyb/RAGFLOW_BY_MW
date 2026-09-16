@@ -95,7 +95,6 @@ const FloatingChatWidget = () => {
   const {
     sharedId: conversationId,
     locale,
-    from,
   } = useGetSharedChatSearchParams();
 
 
@@ -132,7 +131,7 @@ const FloatingChatWidget = () => {
     '#111827',
   );
 
-  const hookResult = useSendSharedMessage(() => {});
+  const hookResult = useSendSharedMessage();
   const {
     handlePressEnter,
     handleInputChange,

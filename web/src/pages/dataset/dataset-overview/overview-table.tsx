@@ -17,7 +17,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { RunningStatusMap } from '@/constants/knowledge';
+import {
+  ProcessingType,
+  ProcessingTypeMap,
+  RunningStatusMap,
+} from '@/constants/knowledge';
 import { useTranslate } from '@/hooks/common-hooks';
 import { cn } from '@/lib/utils';
 import { useDataSourceInfo } from '@/pages/user-setting/data-source/constant';
@@ -40,7 +44,7 @@ import { ArrowUpDown, Eye, MonitorUp } from 'lucide-react';
 import { FC, useMemo, useState } from 'react';
 import { RunningStatus } from '../dataset/constant';
 import ProcessLogModal, { ILogInfo } from '../process-log-modal';
-import { LogTabs, ProcessingType, ProcessingTypeMap } from './dataset-common';
+import { LogTabs } from './dataset-common';
 import { DocumentLog, FileLogsTableProps, IFileLogItem } from './interface';
 
 export const getFileLogsTableColumns = (
@@ -323,7 +327,7 @@ const FileLogsTable: FC<FileLogsTableProps> = ({
   const [logInfo, setLogInfo] = useState<IFileLogItem>();
   const showLog = (row: Row<IFileLogItem & DocumentLog>) => {
     const logDetail = {
-      taskId: row.original?.dsl?.task_id,
+      taskId: (row.original as { task_id?: string })?.task_id,
       fileName: row.original.document_name,
       source: row.original.source_from,
       task: row.original?.task_type,
@@ -341,11 +345,7 @@ const FileLogsTable: FC<FileLogsTableProps> = ({
   const { dataSourceInfo } = useDataSourceInfo();
   const columns = useMemo(() => {
     return active === LogTabs.FILE_LOGS
-      ? getFileLogsTableColumns(
-          t,
-          showLog,
-          dataSourceInfo,
-        )
+      ? getFileLogsTableColumns(t, showLog, dataSourceInfo)
       : getDatasetLogsTableColumns(t, showLog);
   }, [active, t]);
 

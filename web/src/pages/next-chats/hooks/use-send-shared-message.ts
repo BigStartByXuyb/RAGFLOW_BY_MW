@@ -43,7 +43,6 @@ export const useGetSharedChatSearchParams = () => {
 
 export const useSendSharedMessage = () => {
   const {
-    from,
     sharedId: conversationId,
     data: data,
   } = useGetSharedChatSearchParams();

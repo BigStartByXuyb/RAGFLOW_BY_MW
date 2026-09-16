@@ -1,8 +1,12 @@
 import { type SelectWithSearchFlagOptionType } from '@/components/originui/select-with-search';
-import { getEntityDisplayName } from '@/components/structure-graph/adapters';
+import {
+  findEntityDisplayNameByKeyword,
+  getEntityDisplayName,
+} from '@/components/structure-graph/adapters';
 import { type ClickableNode } from '@/components/structure-graph/representation-renderer';
 import { CompilationTemplateKind } from '@/constants/compilation';
 import { useFetchDocumentStructureGraph } from '@/hooks/use-document-request';
+import { useDebounce } from 'ahooks';
 import { useCallback, useMemo, useState } from 'react';
 import { useSelectedTemplate } from './use-selected-template';
 
@@ -10,9 +14,16 @@ export function useGraphEntitySearch(
   onNodeClick?: (node: ClickableNode) => void,
 ) {
   const [graphKeywords, setGraphKeywords] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState(''); // ExpandableSearchInput value
   const [selectedNodeId, setSelectedNodeId] = useState(''); // entity name
 
-  const { data, loading } = useFetchDocumentStructureGraph(graphKeywords);
+  // Non-graph kinds search server-side with the same ?keywords= query the
+  // graph-kind Enter search uses; the two inputs never show at once, and the
+  // handlers below keep at most one of the two keyword sources non-empty.
+  const debouncedSearchKeyword = useDebounce(searchKeyword, { wait: 500 });
+  const { data, loading } = useFetchDocumentStructureGraph(
+    debouncedSearchKeyword || graphKeywords,
+  );
   const templates = useMemo(() => data?.templates ?? [], [data?.templates]);
   const {
     selectedTemplateId,
@@ -45,14 +56,19 @@ export function useGraphEntitySearch(
       ? selectedNodeId
       : '';
 
+  // Picking an option behaves like an Enter search: refetch the server-side
+  // keyword subgraph for that entity (fresh graph + entity count) and keep the
+  // node highlighted, in addition to the chunk navigation.
   const handleSelectEntity = useCallback(
     (name: string) => {
       if (!name) {
         setGraphKeywords('');
+        setSearchKeyword('');
         setSelectedNodeId('');
         return;
       }
       setSelectedNodeId(name);
+      setGraphKeywords(name);
       const entity = (selectedTemplate?.entities ?? []).find(
         (item) => getEntityDisplayName(item) === name,
       );
@@ -67,9 +83,28 @@ export function useGraphEntitySearch(
     [selectedTemplate?.entities, onNodeClick],
   );
 
-  const handleNoMatchEnter = useCallback((keywords: string) => {
-    setGraphKeywords(keywords);
-    setSelectedNodeId('');
+  const handleNoMatchEnter = useCallback(
+    (keywords: string) => {
+      // Enter on a keyword that exactly names an entity must behave like
+      // picking it from the dropdown. Only unmatched text falls back to the
+      // raw keyword subgraph with no highlighted node.
+      const entityName = findEntityDisplayNameByKeyword(
+        selectedTemplate?.entities ?? [],
+        keywords,
+      );
+      if (entityName) {
+        handleSelectEntity(entityName);
+        return;
+      }
+      setGraphKeywords(keywords);
+      setSearchKeyword('');
+      setSelectedNodeId('');
+    },
+    [selectedTemplate?.entities, handleSelectEntity],
+  );
+
+  const handleSearchKeywordChange = useCallback((value: string) => {
+    setSearchKeyword(value);
   }, []);
 
   // Two-way binding: clicking a graph node selects it in the dropdown,
@@ -89,6 +124,7 @@ export function useGraphEntitySearch(
     (templateId: string) => {
       setSelectedTemplateId(templateId);
       setGraphKeywords('');
+      setSearchKeyword('');
       setSelectedNodeId('');
     },
     [setSelectedTemplateId],
@@ -102,10 +138,12 @@ export function useGraphEntitySearch(
     selectedTemplate,
     isGraphKind,
     entityOptions,
+    searchKeyword,
     graphSelectValue: selectedEntityName || graphKeywords,
     highlightNodeId: selectedEntityName || null,
     handleSelectEntity,
     handleNoMatchEnter,
+    handleSearchKeywordChange,
     handleTemplateChange,
     handleNodeClick,
   };

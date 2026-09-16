@@ -1,7 +1,23 @@
+/*
+ *  Copyright 2026 The InfiniFlow Authors. All Rights Reserved.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
 import { useHandleFilterSubmit } from '@/components/list-filter-bar/use-handle-filter-submit';
 
 import message from '@/components/ui/message';
-import { RunningStatus } from '@/constants/knowledge';
+import { IngestionTaskStatus, RunningStatus } from '@/constants/knowledge';
 import { ResponseType } from '@/interfaces/database/base';
 import { IReferenceChunk } from '@/interfaces/database/chat';
 import { IChunk } from '@/interfaces/database/dataset';
@@ -9,13 +25,17 @@ import {
   IDocumentInfo,
   IDocumentInfoFilter,
 } from '@/interfaces/database/document';
-import { IStructureGraphResponse } from '@/interfaces/database/document-structure';
+import {
+  IClaimsResponse,
+  IStructureGraphResponse,
+} from '@/interfaces/database/document-structure';
 import {
   IChangeParserConfigRequestBody,
   IDocumentMetaRequestBody,
 } from '@/interfaces/request/document';
 import i18n from '@/locales/config';
 import { EMPTY_METADATA_FIELD } from '@/pages/dataset/dataset/use-select-filters';
+import { isDocumentProcessing } from '@/pages/dataset/dataset/utils';
 import documentStructureService from '@/services/document-structure-service';
 import kbService, {
   changeDocumentParser,
@@ -28,6 +48,7 @@ import kbService, {
   uploadDocument,
 } from '@/services/knowledge-service';
 import { restAPIv1 } from '@/utils/api';
+import { useIsGoBackend } from '@/utils/backend-variant';
 import { buildChunkHighlights } from '@/utils/document-util';
 import {
   keepPreviousData,
@@ -36,6 +57,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { useDebounce } from 'ahooks';
+import dayjs from 'dayjs';
 import { get } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IHighlight } from 'react-pdf-highlighter';
@@ -44,37 +66,22 @@ import {
   useGetPaginationWithRouter,
   useHandleSearchChange,
 } from './logic-hooks';
-import { extractParserConfigExt } from './parser-config-utils';
+import {
+  normalizeParserConfig,
+} from './parser-config-utils';
 import {
   useGetKnowledgeSearchParams,
   useSetPaginationParams,
 } from './route-hook';
 import { KnowledgeApiAction } from './use-knowledge-request';
+import { DocumentApiAction, DocumentKeys } from './document-query-keys';
 
-export const enum DocumentApiAction {
-  UploadDocument = 'uploadDocument',
-  FetchDocumentList = 'fetchDocumentList',
-  UpdateDocumentStatus = 'updateDocumentStatus',
-  RunDocumentByIds = 'runDocumentByIds',
-  RemoveDocument = 'removeDocument',
-  SaveDocumentName = 'saveDocumentName',
-  SetDocumentParser = 'setDocumentParser',
-  SetDocumentMeta = 'setDocumentMeta',
-  FetchDocumentFilter = 'fetchDocumentFilter',
-  CreateDocument = 'createDocument',
-  FetchDocumentThumbnails = 'fetchDocumentThumbnails',
-  ParseDocument = 'parseDocument',
-}
+export { DocumentApiAction, DocumentKeys } from './document-query-keys';
 
 export const enum DocumentStructureApiAction {
   FetchDocumentStructureGraph = 'fetchDocumentStructureGraph',
   DeleteDocumentStructureGraph = 'deleteDocumentStructureGraph',
 }
-
-const DocumentKeys = {
-  byIds: (ids: string[]) =>
-    [DocumentApiAction.FetchDocumentList, 'byIds', ids] as const,
-};
 
 const documentIngestInFlight = new Map<string, Promise<unknown>>();
 
@@ -95,6 +102,20 @@ export const DocumentStructureKeys = {
       datasetId,
       documentId,
       keywords,
+    ] as const,
+  claims: (
+    datasetId: string,
+    documentId: string,
+    templateId: string | undefined,
+    chunkIds: string[] | undefined,
+  ) =>
+    [
+      DocumentStructureApiAction.FetchDocumentStructureGraph,
+      datasetId,
+      documentId,
+      'claims',
+      templateId,
+      ...(chunkIds ?? []),
     ] as const,
 };
 
@@ -129,8 +150,12 @@ export const useUploadDocument = () => {
         const code = get(ret, 'code');
 
         if (code === 0 || code === 500) {
-          queryClient.invalidateQueries({
-            queryKey: [DocumentApiAction.FetchDocumentList],
+          // Await the refetch so the fresh list (including the just-uploaded
+          // documents) reaches the cache before callers optimistically mark
+          // them RUNNING. Otherwise the late refetch lands after the
+          // optimistic update, overwrites it, and polling never starts.
+          await queryClient.invalidateQueries({
+            queryKey: DocumentKeys.all(),
           });
         }
         return ret;
@@ -162,24 +187,20 @@ export const useFetchDocumentList = (loop = true) => {
   const debouncedSearchString = useDebounce(searchString, { wait: 500 });
   const { filterValue, handleFilterSubmit, checkValue } =
     useHandleFilterSubmit();
-  const [docs, setDocs] = useState<IDocumentInfo[]>([]);
-
-  const isLoop = useMemo(() => {
-    return loop && docs.some((doc) => doc.run === RunningStatus.RUNNING);
-  }, [docs, loop]);
 
   const { data, isFetching: loading } = useQuery<{
     docs: IDocumentInfo[];
     total: number;
+    has_active_tasks?: boolean;
   }>({
-    queryKey: [
-      DocumentApiAction.FetchDocumentList,
-      debouncedSearchString,
-      pagination,
-      filterValue,
-    ],
-    initialData: { docs: [], total: 0 },
-    refetchInterval: isLoop ? 5000 : false,
+    queryKey: DocumentKeys.list(debouncedSearchString, pagination, filterValue),
+    initialData: { docs: [], total: 0, has_active_tasks: false },
+    refetchInterval: (query) =>
+      loop &&
+      (query.state.data?.has_active_tasks ||
+        !!query.state.data?.docs.some(isDocumentProcessing))
+        ? 5000
+        : false,
     enabled: !!knowledgeId || !!id,
     queryFn: async () => {
       let run = [] as any;
@@ -199,7 +220,7 @@ export const useFetchDocumentList = (loop = true) => {
       const ret = await listDocument(
         {
           id: knowledgeId || id,
-          ext: { keywords: debouncedSearchString },
+          keywords: debouncedSearchString,
           page_size: pagination.pageSize,
           page: pagination.current,
         },
@@ -212,7 +233,7 @@ export const useFetchDocumentList = (loop = true) => {
       );
       if (ret.data.code === 0) {
         queryClient.invalidateQueries({
-          queryKey: [DocumentApiAction.FetchDocumentFilter],
+          queryKey: DocumentKeys.allFilters(),
         });
         return ret.data.data;
       }
@@ -220,12 +241,10 @@ export const useFetchDocumentList = (loop = true) => {
       return {
         docs: [],
         total: 0,
+        has_active_tasks: false,
       };
     },
   });
-  useMemo(() => {
-    setDocs(data.docs);
-  }, [data.docs]);
   const onInputChange: React.ChangeEventHandler<HTMLInputElement> = useCallback(
     (e) => {
       setPagination({ page: 1 });
@@ -301,11 +320,7 @@ export const useGetDocumentFilter = (): {
   const [open, setOpen] = useState<number>(0);
   const datasetId = knowledgeId || id;
   const { data } = useQuery({
-    queryKey: [
-      DocumentApiAction.FetchDocumentFilter,
-      debouncedSearchString,
-      knowledgeId,
-    ],
+    queryKey: DocumentKeys.filter(debouncedSearchString, knowledgeId),
     queryFn: async () => {
       if (!datasetId) {
         return;
@@ -360,7 +375,7 @@ export const useSetDocumentStatus = () => {
       if (data.code === 0) {
         message.success(i18n.t('message.modified'));
         queryClient.invalidateQueries({
-          queryKey: [DocumentApiAction.FetchDocumentList],
+          queryKey: DocumentKeys.all(),
         });
       }
       return data;
@@ -373,6 +388,7 @@ export const useSetDocumentStatus = () => {
 // This hook is used to run a document by its IDs
 export const useRunDocument = () => {
   const queryClient = useQueryClient();
+  const isGo = useIsGoBackend();
 
   const {
     data,
@@ -389,9 +405,45 @@ export const useRunDocument = () => {
       run: number;
       option?: { delete: boolean; apply_kb: boolean };
     }) => {
-      queryClient.invalidateQueries({
-        queryKey: [DocumentApiAction.FetchDocumentList],
-      });
+      // Optimistically move started documents into an active state so the
+      // 5s list polling starts immediately and the row leaves its idle
+      // action. Python drives the worker through the legacy run field
+      // (RUNNING); Go has no run field and reports the task lifecycle via
+      // ingestion_status, so CREATED renders as QUEUED until the next poll
+      // observes the real status (SCHEDULED/RUNNING/COMPLETED/...).
+      if (run === 1) {
+        const documentIdSet = new Set(documentIds);
+        queryClient.setQueriesData<{
+          docs: IDocumentInfo[];
+          total: number;
+        }>({ queryKey: DocumentKeys.all() }, (current) => {
+          if (!current) {
+            return current;
+          }
+          return {
+            ...current,
+            docs: current.docs.map((doc) =>
+              documentIdSet.has(doc.id)
+                ? {
+                    ...doc,
+                    ...(isGo
+                      ? { ingestion_status: IngestionTaskStatus.CREATED }
+                      : { run: RunningStatus.RUNNING }),
+                    progress: 0,
+                    process_duration: 0,
+                    process_begin_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+                    progress_msg: '',
+                  }
+                : doc,
+            ),
+          };
+        });
+      }
+      if (run !== 1) {
+        queryClient.invalidateQueries({
+          queryKey: DocumentKeys.all(),
+        });
+      }
       const ret = await kbService.documentIngest({
         doc_ids: documentIds,
         run,
@@ -399,13 +451,28 @@ export const useRunDocument = () => {
       });
       const code = get(ret, 'data.code');
       if (code === 0) {
-        queryClient.invalidateQueries({
-          queryKey: [DocumentApiAction.FetchDocumentList],
-        });
+        // For a start request, keep the optimistic running state until the
+        // polling query observes the worker's state. Invalidating here can
+        // immediately fetch the pre-worker "not started" row and disable
+        // polling again.
+        if (run !== 1) {
+          queryClient.invalidateQueries({
+            queryKey: DocumentKeys.all(),
+          });
+        }
         message.success(i18n.t('message.operated'));
+      } else {
+        queryClient.invalidateQueries({
+          queryKey: DocumentKeys.all(),
+        });
       }
 
       return code;
+    },
+    onError: () => {
+      queryClient.invalidateQueries({
+        queryKey: DocumentKeys.all(),
+      });
     },
   });
 
@@ -456,7 +523,7 @@ export const useRemoveDocument = () => {
       if (data.code === 0) {
         message.success(i18n.t('message.deleted'));
         queryClient.invalidateQueries({
-          queryKey: [DocumentApiAction.FetchDocumentList],
+          queryKey: DocumentKeys.all(),
         });
       }
       return data.code;
@@ -490,7 +557,7 @@ export const useSaveDocumentName = () => {
       if (data.code === 0) {
         message.success(i18n.t('message.renamed'));
         queryClient.invalidateQueries({
-          queryKey: [DocumentApiAction.FetchDocumentList],
+          queryKey: DocumentKeys.all(),
         });
       }
       return data.code;
@@ -527,7 +594,7 @@ export const useSetDocumentParser = () => {
       }
 
       if (parserConfig) {
-        updateData.parser_config = extractParserConfigExt(parserConfig);
+        updateData.parser_config = normalizeParserConfig(parserConfig);
       }
 
       const { data } = await changeDocumentParser(
@@ -537,7 +604,7 @@ export const useSetDocumentParser = () => {
       );
       if (data.code === 0) {
         queryClient.invalidateQueries({
-          queryKey: [DocumentApiAction.FetchDocumentList],
+          queryKey: DocumentKeys.all(),
         });
 
         message.success(i18n.t('message.modified'));
@@ -574,7 +641,7 @@ export const useSetDocumentMeta = () => {
 
         if (data?.code === 0) {
           queryClient.invalidateQueries({
-            queryKey: [DocumentApiAction.FetchDocumentList],
+            queryKey: DocumentKeys.all(),
           });
 
           message.success(i18n.t('message.modified'));
@@ -608,7 +675,7 @@ export const useCreateDocument = () => {
       if (data.code === 0) {
         if (page === 1) {
           queryClient.invalidateQueries({
-            queryKey: [DocumentApiAction.FetchDocumentList],
+            queryKey: DocumentKeys.all(),
           });
         } else {
           setPaginationParams(); // fetch document list
@@ -658,7 +725,7 @@ export const useGetChunkHighlights = (
 export const useFetchDocumentThumbnailsByIds = () => {
   const [ids, setDocumentIds] = useState<string[]>([]);
   const { data } = useQuery<Record<string, string>>({
-    queryKey: [DocumentApiAction.FetchDocumentThumbnails, ids],
+    queryKey: DocumentKeys.thumbnails(ids),
     enabled: ids.length > 0,
     initialData: {},
     queryFn: async () => {
@@ -673,34 +740,87 @@ export const useFetchDocumentThumbnailsByIds = () => {
   return { data, setDocumentIds };
 };
 
-export function useFetchDocumentStructureGraph(keywords?: string) {
-  const { knowledgeId: datasetId, documentId } = useGetKnowledgeSearchParams();
+export function useFetchDocumentStructureGraphById(
+  datasetId: string,
+  documentId: string,
+  keywords?: string,
+) {
   const enabled = !!datasetId && !!documentId;
   const trimmedKeywords = keywords?.trim();
 
-  const { data, isFetching: loading } =
-    useQuery<IStructureGraphResponse | null>({
-      queryKey: trimmedKeywords
-        ? DocumentStructureKeys.graphWithKeywords(
-            datasetId,
-            documentId,
-            trimmedKeywords,
-          )
-        : DocumentStructureKeys.graph(datasetId, documentId),
-      enabled,
-      initialData: null,
-      gcTime: 0,
-      placeholderData: keepPreviousData,
-      queryFn: async () => {
-        const { data } =
-          await documentStructureService.getDocumentStructureGraph(
-            datasetId,
-            documentId,
-            trimmedKeywords,
-          );
-        return data?.data ?? null;
-      },
-    });
+  const {
+    data,
+    isFetching: loading,
+    isPlaceholderData,
+  } = useQuery<IStructureGraphResponse | null>({
+    queryKey: trimmedKeywords
+      ? DocumentStructureKeys.graphWithKeywords(
+          datasetId,
+          documentId,
+          trimmedKeywords,
+        )
+      : DocumentStructureKeys.graph(datasetId, documentId),
+    enabled,
+    initialData: null,
+    gcTime: 0,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const { data } = await documentStructureService.getDocumentStructureGraph(
+        datasetId,
+        documentId,
+        trimmedKeywords,
+      );
+      return data?.data ?? null;
+    },
+  });
+
+  return { data, loading, isPlaceholderData };
+}
+
+export function useFetchDocumentStructureGraph(keywords?: string) {
+  const { knowledgeId: datasetId, documentId } = useGetKnowledgeSearchParams();
+  const { data, loading } = useFetchDocumentStructureGraphById(
+    datasetId,
+    documentId,
+    keywords,
+  );
+
+  return { data, loading };
+}
+
+// Claims are fetched per leaf cluster on demand: the tree shows only a count
+// badge, so the payload (statement + verbatim evidence) loads when the user
+// opens that cluster. chunkIds scopes the query server-side.
+export function useFetchDocumentClaims(
+  chunkIds: string[] | undefined,
+  templateId: string | undefined,
+) {
+  const { knowledgeId: datasetId, documentId } = useGetKnowledgeSearchParams();
+  const enabled = !!datasetId && !!documentId && !!chunkIds?.length;
+
+  const { data, isFetching: loading } = useQuery<IClaimsResponse | null>({
+    queryKey: DocumentStructureKeys.claims(
+      datasetId,
+      documentId,
+      templateId,
+      chunkIds,
+    ),
+    enabled,
+    gcTime: 0,
+    queryFn: async () => {
+      const { data } =
+        await documentStructureService.getDocumentStructureClaims(
+          datasetId,
+          documentId,
+          {
+            chunk_ids: chunkIds?.join(','),
+            template_id: templateId,
+            limit: 100,
+          },
+        );
+      return data?.data ?? null;
+    },
+  });
 
   return { data, loading };
 }

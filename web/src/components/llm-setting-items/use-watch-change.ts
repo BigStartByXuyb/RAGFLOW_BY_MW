@@ -24,13 +24,11 @@ export function useHandleFreedomChange(
 
   const handleChange = useCallback(
     (parameter: string) => {
-      const currentValues = { ...form.getValues() };
       const values =
         settledModelVariableMap[
           parameter as keyof typeof settledModelVariableMap
         ];
 
-      const nextValues = { ...currentValues, ...values };
 
       const variableCheckBoxFieldMap = setChatVariableEnabledFieldValuePage();
 

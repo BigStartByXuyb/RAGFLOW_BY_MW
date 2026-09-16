@@ -1,3 +1,19 @@
+/*
+ *  Copyright 2026 The InfiniFlow Authors. All Rights Reserved.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal/modal';
 import { RAGFlowSelect } from '@/components/ui/select';
@@ -8,6 +24,7 @@ import {
   useConnectChatChannelDialog,
 } from '../hooks';
 import { IChatChannelBase } from '../interface';
+import { toChatChannelTargetValue } from '../connect-target';
 
 const ConnectDialogModal = ({
   visible,
@@ -21,25 +38,31 @@ const ConnectDialogModal = ({
   const { t } = useTranslation();
   const { dialogs } = useChatChannelDialogList();
   const { connect, connecting } = useConnectChatChannelDialog();
-  const [dialogId, setDialogId] = useState<string | undefined>(
-    channel?.chat_id ?? undefined,
+  const [targetValue, setTargetValue] = useState<string | undefined>(
+    toChatChannelTargetValue('chat', channel?.chat_id),
   );
 
   useEffect(() => {
-    setDialogId(channel?.chat_id ?? undefined);
+    setTargetValue(toChatChannelTargetValue('chat', channel?.chat_id));
   }, [channel?.id, channel?.chat_id]);
 
   const options = useMemo(
-    () => (dialogs || []).map((d) => ({ label: d.name, value: d.id })),
-    [dialogs],
+    () =>
+      (dialogs || []).map((d) => ({
+        label: `[${t('setting.chatChannelAssistant')}] ${d.name}`,
+        value: toChatChannelTargetValue('chat', d.id)!,
+      })),
+    [dialogs, t],
   );
 
   const handleConfirm = async () => {
     if (!channel) {
       return;
     }
-    await connect({ channelId: channel.id, dialogId: dialogId || null });
-    hideModal();
+    const result = await connect({ channelId: channel.id, targetValue });
+    if (result.code === 0) {
+      hideModal();
+    }
   };
 
   return (
@@ -64,8 +87,8 @@ const ConnectDialogModal = ({
           {t('setting.selectDialog')}
         </label>
         <RAGFlowSelect
-          value={dialogId}
-          onChange={(val: string) => setDialogId(val || undefined)}
+          value={targetValue}
+          onChange={(val: string) => setTargetValue(val || undefined)}
           options={options}
           allowClear
           placeholder={t('setting.selectDialog')}

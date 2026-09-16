@@ -1,3 +1,19 @@
+/*
+ *  Copyright 2026 The InfiniFlow Authors. All Rights Reserved.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
 import { MessageType } from '@/constants/chat';
 import {
   IMessage,
@@ -38,7 +54,6 @@ import { UploadedMessageFiles } from './uploaded-message-files';
 interface IProps
   extends Partial<IRemoveMessageById>, IRegenerateMessage, PropsWithChildren {
   item: IMessage;
-  conversationId?: string;
   currentEventListWithoutMessageById?: (messageId: string) => INodeEvent[];
   setCurrentMessageId?: (messageId: string) => void;
   reference?: IReferenceObject;
@@ -53,13 +68,11 @@ interface IProps
   index: number;
   showLikeButton?: boolean;
   showLoudspeaker?: boolean;
-  showLog?: boolean;
   isShare?: boolean;
 }
 
 function MessageItem({
   item,
-  conversationId,
   currentEventListWithoutMessageById,
   setCurrentMessageId,
   reference,
@@ -75,7 +88,6 @@ function MessageItem({
   showLoudspeaker = true,
   visibleAvatar = true,
   children,
-  showLog,
   isShare,
   nickname,
 }: IProps) {
@@ -143,6 +155,7 @@ function MessageItem({
             content={messageContent}
             reference={reference}
             clickDocumentButton={clickDocumentButton}
+            disableMath={isUser}
           ></MarkdownContent>
         )}
       </div>
@@ -227,7 +240,6 @@ function MessageItem({
                         showLikeButton={showLikeButton}
                         audioBinary={item.audio_binary}
                         showLoudspeaker={showLoudspeaker}
-                        showLog={showLog}
                         attachment={item.attachment}
                         isShare={isShare}
                       ></AssistantGroupButton>
@@ -240,7 +252,6 @@ function MessageItem({
                         showLikeButton={showLikeButton}
                         audioBinary={item.audio_binary}
                         showLoudspeaker={showLoudspeaker}
-                        showLog={showLog}
                         attachment={item.attachment}
                       ></AssistantGroupButton>
                     )}

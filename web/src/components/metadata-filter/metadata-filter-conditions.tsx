@@ -44,7 +44,6 @@ function ConditionCards({
   remove,
   switchOperatorOptions,
   metadata,
-  canReference,
 }: ConditionCardsProps) {
   const { t } = useTranslation();
   const form = useFormContext();
