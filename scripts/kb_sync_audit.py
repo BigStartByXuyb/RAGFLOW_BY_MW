@@ -100,6 +100,11 @@ IMPORT_ALIASES = {
 # `ragflow_deps/download_deps.py` or provided by an optional runtime image.
 OPTIONAL_IMPORTS = {"torch", "jina", "ais_bench", "imageio_ffmpeg", "ffmpeg", "pymssql"}
 
+# Optional submodules imported lazily behind a runtime flag, and third-party
+# packages the repo shadows with a namespace directory of the same name.
+OPTIONAL_MODULES = ("deepdoc.vision.dla_cli", "rag.svr.jina_server")
+NAMESPACE_ROOTS = ("mcp",)
+
 SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", ".playwright-cli", ".playwright-mcp"}
 
 # Only source files are scanned for removed-surface references; this audit
@@ -244,9 +249,14 @@ def check_batch_imports(files: set[str]) -> list[str]:
             for module in modules:
                 if module.split(".")[0] not in local_roots:
                     continue
+                if module in OPTIONAL_MODULES or module.split(".")[0] in NAMESPACE_ROOTS:
+                    continue
                 target = module_path(module)
                 if target is None:
-                    problems.append(f"{rel}:{node.lineno}: module '{module}' does not exist")
+                    # A directory without __init__.py is a namespace package,
+                    # resolved from the installed distribution instead.
+                    if not os.path.isdir(module.replace(".", "/")):
+                        problems.append(f"{rel}:{node.lineno}: module '{module}' does not exist")
                     continue
                 if isinstance(node, ast.ImportFrom) and not has_star_import(module):
                     names = module_names(module)

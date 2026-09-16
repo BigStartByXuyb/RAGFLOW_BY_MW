@@ -17,7 +17,7 @@ import logging
 from datetime import datetime
 
 from api.apps import current_user, login_required
-from api.db.services.task_service import TaskService, CANVAS_DEBUG_DOC_ID, GRAPH_RAPTOR_FAKE_DOC_ID
+from api.db.services.task_service import TaskService, GRAPH_RAPTOR_FAKE_DOC_ID
 from api.utils.api_utils import (
     get_json_result,
     get_request_json,
@@ -67,7 +67,7 @@ async def _cancel_task(task_id):
     # kb-scoped flows instead.
     doc_id = task.doc_id
     doc = None
-    if doc_id and doc_id not in (CANVAS_DEBUG_DOC_ID, GRAPH_RAPTOR_FAKE_DOC_ID):
+    if doc_id and doc_id != GRAPH_RAPTOR_FAKE_DOC_ID:
         from api.db.services.document_service import DocumentService
 
         # DocumentService.accessible fails closed when the document no longer
