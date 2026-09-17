@@ -24,7 +24,12 @@ services:
         condition: service_healthy
     profiles:
       - cpu
-    image: ${RAGFLOW_IMAGE}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        NEED_MIRROR: ${NEED_MIRROR:-0}
+    image: ${RAGFLOW_IMAGE:-ragflow-local:dev}
     # Example configuration to set up an MCP server:
     # command:
     #   - --enable-mcpserver
@@ -75,7 +80,12 @@ services:
         condition: service_healthy
     profiles:
       - gpu
-    image: ${RAGFLOW_IMAGE}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        NEED_MIRROR: ${NEED_MIRROR:-0}
+    image: ${RAGFLOW_IMAGE:-ragflow-local:dev}
     # Example configuration to set up an MCP server:
     # command:
     #   - --enable-mcpserver

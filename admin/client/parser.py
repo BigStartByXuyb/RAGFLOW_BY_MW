@@ -36,6 +36,7 @@ sql_command: login_user
            | create_user
            | activate_user
            | list_datasets
+           | list_agents
            | create_role
            | drop_role
            | alter_role
@@ -79,6 +80,7 @@ sql_command: login_user
            | list_user_dataset_documents
            | list_user_datasets_metadata
            | list_user_documents_metadata_summary
+           | list_user_agents
            | list_user_chats
            | create_user_chat
            | drop_user_chat
@@ -146,6 +148,7 @@ DATASET_TABLE: "DATASET TABLE"i
 DATASET: "DATASET"i
 DATASETS: "DATASETS"i
 OF: "OF"i
+AGENTS: "AGENTS"i
 ROLE: "ROLE"i
 ROLES: "ROLES"i
 DESCRIPTION: "DESCRIPTION"i
@@ -239,6 +242,7 @@ create_user: CREATE USER quoted_string quoted_string ";"
 activate_user: ALTER USER ACTIVE quoted_string status ";"
 
 list_datasets: LIST DATASETS OF quoted_string ";"
+list_agents: LIST AGENTS OF quoted_string ";"
 
 create_role: CREATE ROLE identifier [DESCRIPTION quoted_string] ";"
 drop_role: DROP ROLE identifier ";"
@@ -297,6 +301,7 @@ user_statement: ping_server
                 | drop_user_dataset
                 | list_user_datasets
                 | list_user_dataset_files
+                | list_user_agents
                 | list_user_chats
                 | create_user_chat
                 | drop_user_chat
@@ -338,6 +343,7 @@ list_user_dataset_files: LIST FILES OF DATASET quoted_string ";"
 list_user_dataset_documents: LIST DOCUMENTS OF DATASET quoted_string ";"
 list_user_datasets_metadata: LIST METADATA OF DATASETS quoted_string (COMMA quoted_string)* ";"
 list_user_documents_metadata_summary: LIST METADATA SUMMARY OF DATASET quoted_string (DOCUMENTS quoted_string (COMMA quoted_string)*)? ";"
+list_user_agents: LIST AGENTS ";"
 list_user_chats: LIST CHATS ";"
 create_user_chat: CREATE CHAT quoted_string ";"
 drop_user_chat: DROP CHAT quoted_string ";"
@@ -460,6 +466,10 @@ class RAGFlowCLITransformer(Transformer):
     def list_datasets(self, items):
         user_name = items[3]
         return {"type": "list_datasets", "user_name": user_name}
+
+    def list_agents(self, items):
+        user_name = items[3]
+        return {"type": "list_agents", "user_name": user_name}
 
     def create_role(self, items):
         role_name = items[2]
@@ -667,6 +677,9 @@ class RAGFlowCLITransformer(Transformer):
                     doc_id = items[i].children[0].strip("'\"")
                     doc_ids.append(doc_id)
         return {"type": "list_user_documents_metadata_summary", "dataset_name": dataset_name, "document_ids": doc_ids}
+
+    def list_user_agents(self, items):
+        return {"type": "list_user_agents"}
 
     def list_user_chats(self, items):
         return {"type": "list_user_chats"}

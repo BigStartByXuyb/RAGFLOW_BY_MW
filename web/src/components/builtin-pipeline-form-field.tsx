@@ -6,6 +6,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { useFetchBuiltinPipelines } from '@/hooks/use-agent-request';
 import { cn } from '@/lib/utils';
 import { useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -19,15 +20,12 @@ export function BuiltinPipelineItem({
 }) {
   const { t } = useTranslation();
   const form = useFormContext();
-  const builtinPipelineOptions = [
-    'naive', 'book', 'email', 'laws', 'manual', 'one', 'paper',
-    'picture', 'presentation', 'qa', 'table', 'tag', 'resume',
-  ].map((value) => {
-    const tipKey = `knowledgeConfiguration.parserTip.${value}`;
+  const { options: builtinPipelines } = useFetchBuiltinPipelines();
+  const builtinPipelineOptions = builtinPipelines.map((option) => {
+    const tipKey = `knowledgeConfiguration.parserTip.${option.value}`;
     const tooltip = t(tipKey);
     return {
-      label: value,
-      value,
+      ...option,
       tooltip: tooltip !== tipKey ? tooltip : undefined,
     };
   });

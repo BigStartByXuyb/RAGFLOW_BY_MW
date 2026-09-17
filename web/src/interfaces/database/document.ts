@@ -12,6 +12,8 @@ export interface IDocumentInfo {
   name: string;
   parser_config: IParserConfig;
   // parser_id: string;
+  pipeline_id: string;
+  pipeline_name: string;
   process_begin_at?: string;
   process_duration: number;
   progress: number;

@@ -1,14 +1,19 @@
 import { DocumentParserType } from '@/constants/knowledge';
 import { useFetchKnowledgeList } from '@/hooks/use-knowledge-request';
 import { IDataset } from '@/interfaces/database/dataset';
+import { useBuildQueryVariableOptions } from '@/pages/agent/hooks/use-get-begin-query';
 import { useDebounce } from 'ahooks';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { toLower } from 'lodash';
+import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { RAGFlowAvatar } from './ragflow-avatar';
 import { RAGFlowFormItem } from './ragflow-form';
 import { MultiSelect } from './ui/multi-select';
 
+function buildQueryVariableOptionsByShowVariable(showVariable?: boolean) {
+  return showVariable ? useBuildQueryVariableOptions : () => [];
+}
 
 function DatasetLabel({ text }: { text: string }) {
   return (
@@ -118,10 +123,47 @@ export function KnowledgeBaseFormField({
     hasNextPage,
   } = useDisableDifferenceEmbeddingDataset(name);
 
+  const nextOptions = buildQueryVariableOptionsByShowVariable(showVariable)();
+
   const knowledgeOptions = datasetOptions;
   const options = useMemo(() => {
+    if (showVariable) {
+      return [
+        {
+          label: t('knowledgeDetails.dataset'),
+          options: knowledgeOptions,
+        },
+        ...nextOptions.map((x) => {
+          const groupLabel = (('label' in x
+            ? x.label
+            : 'title' in x
+              ? x.title
+              : '') ?? '') as ReactNode;
+
+          return {
+            ...x,
+            label: groupLabel,
+            options: x.options
+              .filter((y) => toLower(y.type).includes('string'))
+              .map((x) => ({
+                ...x,
+                label: x.label ?? x.value ?? '',
+                value: x.value ?? '',
+                icon: () => (
+                  <RAGFlowAvatar
+                    className="size-4 mr-2"
+                    avatar={String(x.label ?? '')}
+                    name={String(x.label ?? '')}
+                  />
+                ),
+              })),
+          };
+        }),
+      ];
+    }
+
     return knowledgeOptions;
-  }, [knowledgeOptions]);
+  }, [knowledgeOptions, nextOptions, showVariable, t]);
 
   return (
     <RAGFlowFormItem

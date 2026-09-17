@@ -38,6 +38,9 @@ export const useCreateNextCompilationTemplateGroup = () => {
       builtinKindOptions.map((option) => ({
         ...option,
         label: formatKindLabel(t, option.value),
+        tooltip: t(
+          `setting.templateKindOptionTooltip.${option.value}`,
+        ),
       })),
     [builtinKindOptions, t],
   );

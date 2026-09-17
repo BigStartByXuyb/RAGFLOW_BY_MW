@@ -1,6 +1,10 @@
+import { ParseType } from '@/constants/knowledge';
+import { t } from 'i18next';
 import { z } from 'zod';
 
-export const formSchema = z.object({
+export const formSchema = z
+  .object({
+    parse_type: z.nativeEnum(ParseType),
     name: z.string().min(1, {
       message: 'Username must be at least 2 characters.',
     }),
@@ -10,6 +14,9 @@ export const formSchema = z.object({
     permission: z.string().optional(),
     language: z.string().optional(),
     chunk_method: z.string(),
+    pipeline_id: z.string().optional(),
+    pipeline_name: z.string().optional(),
+    pipeline_avatar: z.string().optional(),
     embedding_model: z.string(),
     parser_config: z
       .object({
@@ -123,4 +130,28 @@ export const formSchema = z.object({
       )
       .optional(),
     // icon: z.array(z.instanceof(File)),
+  })
+  .superRefine((data, ctx) => {
+    if (data.parse_type === ParseType.Pipeline && !data.pipeline_id) {
+      ctx.addIssue({
+        path: ['pipeline_id'],
+        message: t('common.pleaseSelect'),
+        code: 'custom',
+      });
+    }
   });
+
+export const pipelineFormSchema = z.object({
+  pipeline_id: z.string().optional(),
+  set_default: z.boolean().optional(),
+  file_filter: z.string().optional(),
+});
+
+// export const linkPiplineFormSchema = pipelineFormSchema.pick({
+//   pipeline_id: true,
+//   file_filter: true,
+// });
+// export const editPiplineFormSchema = pipelineFormSchema.pick({
+//   set_default: true,
+//   file_filter: true,
+// });

@@ -5,6 +5,7 @@ import {
   IDocumentDownloadInfo,
   IReferenceObject,
 } from '@/interfaces/database/chat';
+import { BeginQuery } from '@/pages/agent/interface';
 import { getAuthorization } from '@/utils/authorization-util';
 import { EventSourceParserStream } from 'eventsource-parser/stream';
 import { useCallback, useRef, useState } from 'react';
@@ -44,7 +45,7 @@ export interface INodeData {
 
 export interface IInputData {
   content: string;
-  inputs: Record<string, unknown>;
+  inputs: Record<string, BeginQuery>;
   tips: string;
 }
 export interface IAttachment {

@@ -1,6 +1,6 @@
 # RAGFlow Instructions
 
-Use this file as the local operating guide for the current codebase. Prefer the code and the current CLAUDE.md over any older convention or remembered project shape.
+Use this file as the local operating guide for Codex/ChatGPT in the current codebase. Prefer the code and this AGENTS.md over any older convention or remembered project shape. CLAUDE.md is for Claude Code clients and should not be treated as the Codex instruction source.
 
 ## Core Stance
 - Treat legacy code as liability, not as a compatibility target.
@@ -13,41 +13,42 @@ Use this file as the local operating guide for the current codebase. Prefer the 
 ## Current stack
 - Backend: Python 3.13+, Quart-based API server, Peewee ORM, async workers.
 - Frontend: React + TypeScript + Vite in `web/`.
-- Go: the repository also has a substantial Go module for servers, ingestion, parser/runtime, CLI, and supporting services.
+- Go: the repository also has a substantial Go module under `go/` for servers, ingestion, parser/runtime, CLI, and supporting services.
 - Runtime services commonly include MySQL/PostgreSQL, Redis, MinIO, and Elasticsearch/Infinity/OpenSearch depending on configuration.
 
 ## Code Layout to Expect
-> Python 代码详细导航地图见 `docs/code-map/INDEX.md`(两层懒加载:先读索引,再按需打开 `python-*.md`)。
+> Python 代码详细导航地图见 `docs/code-map/INDEX.md`。两层懒加载:先读 INDEX 索引定位模块,再按需打开对应 `python-*.md` 详情(api / rag / agent / deepdoc / common)。查找 Python 代码前先查此地图,避免全量扫描。
+> 文件上传、解析入库、切块、embedding、写索引、状态更新相关问题,优先读取 `docs/code-map/python-ingestion-pipeline.md`。
 - `api/`: Python API server entrypoints, blueprints, services, and database code.
 - `rag/`: ingestion, retrieval, LLM integration, and graph RAG logic.
 - `deepdoc/`: parsing and OCR.
 - `agent/`: workflow canvas, components, tools, and templates.
-- `cmd/`: Go entrypoints. `ragflow_main` is the main server/admin/ingestor binary surface; `ragflow-cli` is the CLI entrypoint.
-- `internal/`: main Go application code. Important subtrees:
-- `internal/agent/`: Go agent runtime, canvas execution, components, tool bindings, workflow helpers.
-- `internal/cli/`: CLI parsing, HTTP transport, command execution, response formatting.
-- `internal/dao/`: Go data-access layer and persistence-facing helpers.
-- `internal/deepdoc/`: Go DeepDOC integrations, especially native-backed PDF/DOCX parsing.
-- `internal/engine/`: search/index backends such as Elasticsearch and Infinity.
-- `internal/entity/`: shared Go entities and model definitions.
-- `internal/handler/`: HTTP handlers and route-facing request logic.
-- `internal/ingestion/`: Go ingestion pipeline, canvas adapter, components, wiring, service orchestration.
-- `internal/ingestion/component/`: stage implementations such as file/parser/chunker/tokenizer/extractor.
-- `internal/ingestion/pipeline/`: DSL translation, canvas-driven execution, checkpoints, resume/run logic.
-- `internal/parser/`: parser and chunk libraries used by ingestion and other Go paths.
-- `internal/parser/parser/`: typed parse-result parsers for markdown/html/pdf/docx/xlsx/text and related families.
-- `internal/parser/chunk/`: chunk operator library and DSL/typed execution helpers.
-- `internal/service/`: higher-level business services used by handlers and server flows.
-- `internal/storage/`: storage backends and in-memory test doubles.
-- `internal/router/`: HTTP route registration.
-- `internal/server/`: server bootstrap/config wiring.
-- `internal/cpp/`: C++ sources used by native-backed Go features.
+- `go/`: Go language root. Important subtrees:
+- `go/cmd/`: Go entrypoints. `ragflow_server.go` is the main server/admin/ingestor binary surface; `ragflow-cli.go` is the CLI entrypoint.
+- `go/agent/`: Go agent runtime, canvas execution, components, tool bindings, workflow helpers.
+- `go/cli/`: CLI parsing, HTTP transport, command execution, response formatting.
+- `go/dao/`: Go data-access layer and persistence-facing helpers.
+- `go/deepdoc/`: Go DeepDOC integrations, especially native-backed PDF/DOCX parsing.
+- `go/engine/`: search/index backends such as Elasticsearch and Infinity.
+- `go/entity/`: shared Go entities and model definitions.
+- `go/handler/`: HTTP handlers and route-facing request logic.
+- `go/ingestion/`: Go ingestion pipeline, canvas adapter, components, wiring, service orchestration.
+- `go/ingestion/component/`: stage implementations such as file/parser/chunker/tokenizer/extractor.
+- `go/ingestion/pipeline/`: DSL translation, canvas-driven execution, checkpoints, resume/run logic.
+- `go/parser/`: parser and chunk libraries used by ingestion and other Go paths.
+- `go/parser/parser/`: typed parse-result parsers for markdown/html/pdf/docx/xlsx/text and related families.
+- `go/parser/chunk/`: chunk operator library and DSL/typed execution helpers.
+- `go/service/`: higher-level business services used by handlers and server flows.
+- `go/storage/`: storage backends and in-memory test doubles.
+- `go/router/`: HTTP route registration.
+- `go/server/`: server bootstrap/config wiring.
+- `cpp/`: C++ language root for native-backed features.
 - `web/`: frontend application.
 - `docker/`: local and production compose files.
 - `sdk/` and `test/`: SDK and automated tests.
 
 ## Go-Specific Rules
-- Treat `internal/ingestion`, `internal/parser`, and `internal/deepdoc` as actively refactored code. Prefer collapsing duplicate paths over preserving transitional wrappers.
+- Treat `go/ingestion`, `go/parser`, and `go/deepdoc` as actively refactored code. Prefer collapsing duplicate paths over preserving transitional wrappers.
 - Do not add or preserve deprecated Go APIs just to ease migration inside the repo.
 - Remove commented-out Go code instead of leaving recovery notes in place.
 - Keep package comments and doc comments aligned with the current runtime path, not with migration history.
@@ -101,7 +102,7 @@ bash build.sh --all
 - For frontend changes, prefer the touched-package lint, type-check, or test command.
 - For Go changes, prefer package-scoped `bash build.sh --test ...` first.
 - Do not default to raw `go test`, `go build`, or IDE Run/Debug for Go in this repo. They often miss the required CGO flags and native static libraries (`office_oxide`, `pdfium-static`, `pdf_oxide`) that `build.sh` wires correctly.
-- If Go native builds fail, inspect `build.sh` and `internal/development.md` before changing code. Common environment issues are missing downloaded native deps and missing `lld` on Linux.
+- If Go native builds fail, inspect `build.sh` and `go/development.md` before changing code. Common environment issues are missing downloaded native deps and missing `lld` on Linux.
 
 ## Default review checklist
 - Remove instead of retaining `deprecated`, `legacy`, or compatibility-only code.
@@ -109,9 +110,10 @@ bash build.sh --all
 - Drop stale comments and documentation that describe a superseded design.
 - Keep exported APIs only when the current code actually needs them.
 
-## Python DataFlow and Canvas-Agent Removal
-- The Python product must not expose user-configurable DataFlow pipelines or drag-and-drop canvas agents. Remove their frontend pages, routes, navigation, API clients, Python APIs, services, models, templates, task/log handling, schema/migrations, and every remaining reference together.
-- Keep the fixed internal RAG document-processing flow: upload, parsing/OCR, chunking, embedding, indexing, retrieval, standard chat, and knowledge-base APIs. This fixed flow is not a user-configurable pipeline.
-- Do not modify Go or C++ as part of this removal unless a later task explicitly expands the scope.
-- Remove obsolete feature-specific translations and tests only. Preserve, and repair or extend where needed, translations and tests for all retained RAG, standard-chat, and knowledge-base API capabilities.
-- Before completing this removal, perform a repository-wide residual-reference audit and an ownership/call-path review of retained Python code. Confirm that no retained route, import, model, task, or test depends on the removed features; record the searches and validation results in the active task record.
+## Ingestion Pipelines and Canvas Surfaces
+- The ingestion pipeline (DataFlow canvas) is a retained product surface in both the Python and Go backends: a knowledge base may run its uploads through a built-in pipeline or a user-authored pipeline. Keep the canvas runtime, the pipeline APIs, the pipeline models/tables, the pipeline task handling, and the schema/migrations that support them.
+- The canvas runtime is shared: `agent/` (Python) and `go/agent/` back the ingestion pipeline executor, so it stays even when conversational-agent surfaces are hidden. Do not delete it to remove agent-facing features.
+- Conversational-agent surfaces are not exposed in the navigation: the frontend mounts the pipeline entry only. Keep agent-canvas code compiling and reachable from its routes, but do not add a navigation entry that advertises agent workflows.
+- Keep the fixed internal RAG document-processing flow as well: upload, parsing/OCR, chunking via the knowledge base's configured strategy, embedding, indexing, retrieval, standard chat, and knowledge-base APIs.
+- Do not modify Go or C++ unless a task explicitly expands the scope.
+- Preserve, and repair or extend where needed, translations and tests for the retained RAG, standard-chat, knowledge-base, and ingestion-pipeline capabilities.
