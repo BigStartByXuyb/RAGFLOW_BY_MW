@@ -18,11 +18,16 @@ export enum Routes {
   DatasetBase = '/dataset',
   Files = '/files',
   Dataset = `${Routes.DatasetBase}/${Routes.Files}`,
+  Agent = '/agent',
+  AgentTemplates = '/agent-templates',
+  Agents = '/agents',
   Explore = '/explore',
+  AgentExplore = `${Routes.Agent}/:id/explore`,
   Memories = '/memories',
   Memory = '/memory',
   MemoryMessage = '/memory-message',
   MemorySetting = '/memory-setting',
+  AgentList = '/agent-list',
   Searches = '/searches',
   Search = '/search',
   SearchShare = '/search/share',
@@ -59,11 +64,15 @@ export enum Routes {
   ResultView = `${Chunk}${Result}`,
   KnowledgeGraph = '/knowledge-graph',
   Compilation = '/compilation',
+  AgentLogPage = '/agent-log-page',
+  AgentShare = '/agent/share',
   ChatShare = `${Chats}/share`,
   ChatWidget = `${Chats}/widget`,
   UserSetting = '/user-setting',
   DataSetOverview = '/logs',
   DataSetSetting = '/configuration',
+  DataSetSettingNext = '/setting',
+  DataflowResult = '/dataflow-result',
   Admin = '/admin',
   AdminServices = `${Admin}/services`,
   AdminUserManagement = `${Admin}/users`,
@@ -190,6 +199,10 @@ const routeConfigOptions = [
             path: `${Routes.DatasetBase}${Routes.DataSetSetting}/:id`,
             Component: () => import('@/pages/dataset/dataset-setting'),
           },
+          {
+            path: `${Routes.DatasetBase}${Routes.DataSetSettingNext}/:id`,
+            Component: () => import('@/pages/dataset/setting'),
+          },
         ],
       },
       {
@@ -204,6 +217,10 @@ const routeConfigOptions = [
         path: `${Routes.Search}/:id`,
         layout: false,
         Component: () => import('@/pages/next-search'),
+      },
+      {
+        path: Routes.Agents,
+        Component: () => import('@/pages/agents'),
       },
       {
         path: Routes.Memories,
@@ -323,6 +340,19 @@ const routeConfigOptions = [
   {
     path: `${Routes.DatasetBase}${Routes.Compilation}/:id`,
     Component: () => import('@/pages/dataset/compilation'),
+  },
+  {
+    path: Routes.Agent,
+    children: [
+      {
+        path: `${Routes.Agent}/:id`,
+        Component: () => import('@/pages/agent'),
+      },
+    ],
+  },
+  {
+    path: `${Routes.DataflowResult}`,
+    Component: () => import('@/pages/dataflow-result'),
   },
   {
     path: Routes.Chunk,

@@ -1,3 +1,5 @@
+import { AgentCategory, AgentQuery } from '@/constants/agent';
+import { NavigateToDataflowResultProps } from '@/pages/dataflow-result/interface';
 import { Routes } from '@/routes';
 import { useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
@@ -85,6 +87,17 @@ export const useNavigatePage = () => {
     [navigate],
   );
 
+  const navigateToAgents = useCallback(() => {
+    navigate(Routes.Agents);
+  }, [navigate]);
+
+  const navigateToAgent = useCallback(
+    (id: string, category?: AgentCategory) => () => {
+      navigate(`${Routes.Agent}/${id}?${AgentQuery.Category}=${category}`);
+    },
+    [navigate],
+  );
+
   const navigateToSearchList = useCallback(() => {
     navigate(Routes.Searches);
   }, [navigate]);
@@ -106,6 +119,7 @@ export const useNavigatePage = () => {
     (id: string, knowledgeId?: string) => () => {
       navigate(
         `${Routes.ParsedResult}/chunks?id=${knowledgeId}&doc_id=${id}`,
+        // `${Routes.DataflowResult}?id=${knowledgeId}&doc_id=${id}&type=chunk`,
       );
     },
     [navigate],
@@ -152,6 +166,22 @@ export const useNavigatePage = () => {
     [navigate],
   );
 
+  const navigateToDataflowResult = useCallback(
+    (props: NavigateToDataflowResultProps) => () => {
+      const params: string[] = [];
+      Object.keys(props).forEach((key) => {
+        if (props[key as keyof typeof props]) {
+          params.push(`${key}=${props[key as keyof typeof props]}`);
+        }
+      });
+      navigate(
+        // `${Routes.ParsedResult}/${id}?${QueryStringMap.KnowledgeId}=${knowledgeId}`,
+        `${Routes.DataflowResult}?${params.join('&')}`,
+      );
+    },
+    [navigate],
+  );
+
   const navigateToModelSetting = useCallback(() => {
     navigate(`${Routes.UserSetting}${Routes.Model}`);
   }, [navigate]);
@@ -193,10 +223,13 @@ export const useNavigatePage = () => {
     navigateToChunkParsedResult,
     getQueryString,
     navigateToChunk,
+    navigateToAgents,
+    navigateToAgent,
     navigateToSearchList,
     navigateToSearch,
     navigateToFiles,
     navigateToOldProfile,
+    navigateToDataflowResult,
     navigateToDataFile,
     navigateToCompilation,
     navigateToDataSourceDetail,

@@ -767,12 +767,10 @@ func startServer(ctx context.Context, config *server.Config) {
 	)
 	agentHandler := handler.NewAgentHandler(agentService, fileService)
 
-	// Public chatbot/agentbot endpoints (api/v1/chatbots/...,
-	// api/v1/agentbots/...) and the agent attachment download.
-	// BotService delegates the agentBot completion to agentService so
-	// both paths share the same canvas runner. Reuse the llmService
-	// already constructed above (line 222) — do NOT redeclare with
-	// `:=` since the variable is in scope.
+	// Public chatbot endpoints (api/v1/chatbots/...) and the agent
+	// attachment download. Reuse the llmService already constructed
+	// above (line 222) — do NOT redeclare with `:=` since the variable
+	// is in scope.
 	botService := service.NewBotService(agentService, llmService)
 	botHandler := handler.NewBotHandler(botService)
 

@@ -15,12 +15,14 @@ import { SearchList } from './search-list';
 const IconMap = {
   [Routes.Chats]: 'chats',
   [Routes.Searches]: 'searches',
+  [Routes.Agents]: 'agents',
   [Routes.Memories]: 'memory',
 };
 
 const EmptyTypeMap = {
   [Routes.Chats]: EmptyCardType.Chat,
   [Routes.Searches]: EmptyCardType.Search,
+  [Routes.Agents]: EmptyCardType.Agent,
   [Routes.Memories]: EmptyCardType.Memory,
 };
 

@@ -29,7 +29,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"ragflow/go/agent/canvas"
 	"ragflow/go/common"
 	"ragflow/go/entity"
 	"ragflow/go/service"
@@ -40,8 +39,6 @@ import (
 // methods return safe defaults.
 type stubBotService struct {
 	chatbotInfoFn      func(ctx context.Context, tenantID, dialogID string) (string, string, string, string, bool, common.ErrorCode, error)
-	agentbotInputsFn   func(ctx context.Context, tenantID, agentID string) (string, string, string, string, map[string]any, common.ErrorCode, error)
-	agentbotCompleteFn func(ctx context.Context, tenantID, agentID string, req service.AgentbotCompletionRequest) (<-chan canvas.RunEvent, common.ErrorCode, error)
 	chatbotCompleteFn  func(ctx context.Context, tenantID, dialogID string, req service.ChatbotCompletionRequest) (<-chan service.ChatbotSSEFrame, common.ErrorCode, error)
 }
 
@@ -50,20 +47,6 @@ func (s *stubBotService) ChatbotInfo(ctx context.Context, tenantID, dialogID str
 		return s.chatbotInfoFn(ctx, tenantID, dialogID)
 	}
 	return "", "", "", "", false, common.CodeDataError, errors.New("not stubbed")
-}
-
-func (s *stubBotService) AgentbotInputs(ctx context.Context, tenantID, agentID string) (string, string, string, string, map[string]any, common.ErrorCode, error) {
-	if s.agentbotInputsFn != nil {
-		return s.agentbotInputsFn(ctx, tenantID, agentID)
-	}
-	return "", "", "", "", nil, common.CodeDataError, errors.New("not stubbed")
-}
-
-func (s *stubBotService) AgentbotCompletion(ctx context.Context, tenantID, agentID string, req service.AgentbotCompletionRequest) (<-chan canvas.RunEvent, common.ErrorCode, error) {
-	if s.agentbotCompleteFn != nil {
-		return s.agentbotCompleteFn(ctx, tenantID, agentID, req)
-	}
-	return nil, common.CodeDataError, errors.New("not stubbed")
 }
 
 func (s *stubBotService) ChatbotCompletion(ctx context.Context, tenantID, dialogID string, req service.ChatbotCompletionRequest) (<-chan service.ChatbotSSEFrame, common.ErrorCode, error) {
@@ -97,14 +80,6 @@ func botTestEngine(stub *stubBotService) *gin.Engine {
 	})
 	chatbot.POST("/:dialog_id/completions", h.ChatbotCompletion)
 	chatbot.GET("/:dialog_id/info", h.ChatbotInfo)
-
-	agentbot := r.Group("/api/v1/agentbots")
-	agentbot.Use(func(c *gin.Context) {
-		c.Set("user", &entity.User{ID: "tenant-x"})
-		c.Next()
-	})
-	agentbot.POST("/:agent_id/completions", h.AgentbotCompletion)
-	agentbot.GET("/:agent_id/inputs", h.AgentbotInputs)
 	return r
 }
 
@@ -394,232 +369,6 @@ func TestChatbotCompletion_SessionTenantMismatch(t *testing.T) {
 	}
 }
 
-// ----- AgentbotCompletion tests (criteria 17, 18, 19, 20) -----
-
-// TestAgentbotCompletion_StreamsSSE covers criterion 17.
-//
-// The shared/embedded agent chat page parses the stream with the
-// same use-send-message.ts parser as the in-app agent chat, so the
-// handler must forward the agent canvas envelope ({event,
-// message_id, session_id, data}) — NOT the chatbot {code,
-// data:{answer}} envelope — terminated by [DONE].
-func TestAgentbotCompletion_StreamsSSE(t *testing.T) {
-	stub := &stubBotService{
-		agentbotCompleteFn: func(ctx context.Context, tenantID, agentID string, req service.AgentbotCompletionRequest) (<-chan canvas.RunEvent, common.ErrorCode, error) {
-			ch := make(chan canvas.RunEvent, 4)
-			go func() {
-				defer close(ch)
-				ch <- canvas.RunEvent{Type: "message", Data: "hello", SessionID: "s1"}
-				ch <- canvas.RunEvent{Type: "message_end", Data: "", SessionID: "s1"}
-			}()
-			return ch, common.CodeSuccess, nil
-		},
-	}
-	r := botTestEngine(stub)
-	w := doJSON(r, http.MethodPost, "/api/v1/agentbots/a1/completions", `{"question":"hi"}`)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
-	}
-	frames := parseBotSSEFrames(t, w.Body.Bytes())
-	if len(frames) < 3 {
-		t.Fatalf("expected >= 3 frames, got %d", len(frames))
-	}
-	// The last frame must be [DONE].
-	if frames[len(frames)-1] != "[DONE]" {
-		t.Errorf("last frame = %q, want [DONE]", frames[len(frames)-1])
-	}
-	// First frame is the agent canvas message envelope.
-	var env map[string]any
-	if err := json.Unmarshal([]byte(frames[0]), &env); err != nil {
-		t.Fatalf("bad JSON: %v", err)
-	}
-	if env["event"] != "message" {
-		t.Errorf("frame event = %v, want message", env["event"])
-	}
-	if env["session_id"] != "s1" {
-		t.Errorf("frame session_id = %v, want s1", env["session_id"])
-	}
-	if env["data"] != "hello" {
-		t.Errorf("frame data = %v, want hello", env["data"])
-	}
-	// Second frame forwards the message_end terminator event.
-	var endEnv map[string]any
-	if err := json.Unmarshal([]byte(frames[1]), &endEnv); err != nil {
-		t.Fatalf("bad JSON: %v", err)
-	}
-	if endEnv["event"] != "message_end" {
-		t.Errorf("frame event = %v, want message_end", endEnv["event"])
-	}
-}
-
-// TestAgentbotCompletion_URLBoundAgentID covers criterion 18.
-func TestAgentbotCompletion_URLBoundAgentID(t *testing.T) {
-	var capturedAgentID string
-	stub := &stubBotService{
-		agentbotCompleteFn: func(ctx context.Context, tenantID, agentID string, req service.AgentbotCompletionRequest) (<-chan canvas.RunEvent, common.ErrorCode, error) {
-			capturedAgentID = agentID
-			ch := make(chan canvas.RunEvent, 2)
-			close(ch)
-			return ch, common.CodeSuccess, nil
-		},
-	}
-	r := botTestEngine(stub)
-	// Body says "agent_id=body-id" but the URL is "url-id"; the URL
-	// must win.
-	_ = doJSON(r, http.MethodPost, "/api/v1/agentbots/url-id/completions", `{"agent_id":"body-id","question":"hi"}`)
-	if capturedAgentID != "url-id" {
-		t.Errorf("agentID = %q, want url-id (URL must override body)", capturedAgentID)
-	}
-}
-
-// TestAgentbotCompletion_NoAccess covers criterion 19.
-func TestAgentbotCompletion_NoAccess(t *testing.T) {
-	stub := &stubBotService{
-		agentbotCompleteFn: func(ctx context.Context, tenantID, agentID string, req service.AgentbotCompletionRequest) (<-chan canvas.RunEvent, common.ErrorCode, error) {
-			return nil, common.CodeDataError, errors.New("Can't find agent by ID: a1")
-		},
-	}
-	r := botTestEngine(stub)
-	w := doJSON(r, http.MethodPost, "/api/v1/agentbots/a1/completions", `{"question":"hi"}`)
-	var resp struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	}
-	_ = json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp.Code != 102 {
-		t.Errorf("code = %d, want 102", resp.Code)
-	}
-	if !strings.Contains(resp.Message, "Can't find agent") {
-		t.Errorf("message = %q, want contains 'Can't find agent'", resp.Message)
-	}
-}
-
-// TestAgentbotCompletion_ResumesSession covers criterion 20.
-func TestAgentbotCompletion_ResumesSession(t *testing.T) {
-	var capturedReq service.AgentbotCompletionRequest
-	stub := &stubBotService{
-		agentbotCompleteFn: func(ctx context.Context, tenantID, agentID string, req service.AgentbotCompletionRequest) (<-chan canvas.RunEvent, common.ErrorCode, error) {
-			capturedReq = req
-			ch := make(chan canvas.RunEvent, 2)
-			close(ch)
-			return ch, common.CodeSuccess, nil
-		},
-	}
-	r := botTestEngine(stub)
-	_ = doJSON(r, http.MethodPost, "/api/v1/agentbots/a1/completions", `{"session_id":"s-resume","question":"hi"}`)
-	if capturedReq.SessionID != "s-resume" {
-		t.Errorf("session_id = %q, want s-resume", capturedReq.SessionID)
-	}
-}
-
-func TestAgentbotCompletion_BindsFileDescriptors(t *testing.T) {
-	var capturedReq service.AgentbotCompletionRequest
-	stub := &stubBotService{
-		agentbotCompleteFn: func(ctx context.Context, tenantID, agentID string, req service.AgentbotCompletionRequest) (<-chan canvas.RunEvent, common.ErrorCode, error) {
-			capturedReq = req
-			ch := make(chan canvas.RunEvent)
-			close(ch)
-			return ch, common.CodeSuccess, nil
-		},
-	}
-	r := botTestEngine(stub)
-	_ = doJSON(r, http.MethodPost, "/api/v1/agentbots/a1/completions", `{
-		"question":"hi",
-		"files":[{"id":"upload-1","name":"notes.txt","mime_type":"text/plain","created_by":"user-1"}]
-	}`)
-	if len(capturedReq.Files) != 1 {
-		t.Fatalf("files = %#v, want one descriptor", capturedReq.Files)
-	}
-	if capturedReq.Files[0]["id"] != "upload-1" || capturedReq.Files[0]["created_by"] != "user-1" {
-		t.Fatalf("file descriptor = %#v", capturedReq.Files[0])
-	}
-}
-
-// ----- AgentbotInputs tests (criteria 21, 22, 23) -----
-
-// TestAgentbotInputs_OK covers criterion 21.
-func TestAgentbotInputs_OK(t *testing.T) {
-	stub := &stubBotService{
-		agentbotInputsFn: func(ctx context.Context, tenantID, agentID string) (string, string, string, string, map[string]any, common.ErrorCode, error) {
-			return "My Agent", "agent.png", "Welcome", "Agent", map[string]any{"query": map[string]any{"type": "string"}}, common.CodeSuccess, nil
-		},
-	}
-	r := botTestEngine(stub)
-	w := doJSON(r, http.MethodGet, "/api/v1/agentbots/a1/inputs", "")
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
-	}
-	var resp struct {
-		Data map[string]any `json:"data"`
-	}
-	_ = json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp.Data["title"] != "My Agent" {
-		t.Errorf("title = %v, want My Agent", resp.Data["title"])
-	}
-	if resp.Data["prologue"] != "Welcome" {
-		t.Errorf("prologue = %v, want Welcome", resp.Data["prologue"])
-	}
-	if resp.Data["mode"] != "Agent" {
-		t.Errorf("mode = %v, want Agent", resp.Data["mode"])
-	}
-	inputs, ok := resp.Data["inputs"].(map[string]any)
-	if !ok {
-		t.Fatalf("inputs is not a map: %T", resp.Data["inputs"])
-	}
-	if _, has := inputs["query"]; !has {
-		t.Errorf("inputs missing 'query' key: %v", inputs)
-	}
-}
-
-// TestAgentbotInputs_MissingBeginComponent covers criterion 22.
-func TestAgentbotInputs_MissingBeginComponent(t *testing.T) {
-	// Stub returns nil inputs and empty prologue/mode (mimics the
-	// service-layer fallback when FindBeginComponentID returns
-	// ErrComponentNotFound).
-	stub := &stubBotService{
-		agentbotInputsFn: func(ctx context.Context, tenantID, agentID string) (string, string, string, string, map[string]any, common.ErrorCode, error) {
-			return "Agent", "", "", "", nil, common.CodeSuccess, nil
-		},
-	}
-	r := botTestEngine(stub)
-	w := doJSON(r, http.MethodGet, "/api/v1/agentbots/a1/inputs", "")
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200 (degrade gracefully, no 500)", w.Code)
-	}
-	var resp struct {
-		Data map[string]any `json:"data"`
-	}
-	_ = json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp.Data["prologue"] != "" {
-		t.Errorf("prologue = %v, want \"\"", resp.Data["prologue"])
-	}
-	if resp.Data["mode"] != "" {
-		t.Errorf("mode = %v, want \"\"", resp.Data["mode"])
-	}
-}
-
-// TestAgentbotInputs_NotFound covers criterion 23.
-func TestAgentbotInputs_NotFound(t *testing.T) {
-	stub := &stubBotService{
-		agentbotInputsFn: func(ctx context.Context, tenantID, agentID string) (string, string, string, string, map[string]any, common.ErrorCode, error) {
-			return "", "", "", "", nil, common.CodeDataError, errors.New("Can't find agent by ID: a1")
-		},
-	}
-	r := botTestEngine(stub)
-	w := doJSON(r, http.MethodGet, "/api/v1/agentbots/a1/inputs", "")
-	var resp struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	}
-	_ = json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp.Code != 102 {
-		t.Errorf("code = %d, want 102", resp.Code)
-	}
-	if !strings.Contains(resp.Message, "Can't find agent") {
-		t.Errorf("message = %q, want contains 'Can't find agent'", resp.Message)
-	}
-}
-
 // ----- DownloadAttachment tests (criteria 1-5, 28) -----
 
 // TestDownloadAttachment_OK covers criterion 1.
@@ -766,17 +515,11 @@ func TestBotRoutes_RequireAuth(t *testing.T) {
 	chatbot.Use(func(c *gin.Context) { c.Next() })
 	chatbot.POST("/:dialog_id/completions", h.ChatbotCompletion)
 	chatbot.GET("/:dialog_id/info", h.ChatbotInfo)
-	agentbot := g.Group("/agentbots")
-	agentbot.Use(func(c *gin.Context) { c.Next() })
-	agentbot.POST("/:agent_id/completions", h.AgentbotCompletion)
-	agentbot.GET("/:agent_id/inputs", h.AgentbotInputs)
 	cases := []struct {
 		method, path string
 	}{
 		{http.MethodGet, "/api/v1/chatbots/d1/info"},
 		{http.MethodPost, "/api/v1/chatbots/d1/completions"},
-		{http.MethodGet, "/api/v1/agentbots/a1/inputs"},
-		{http.MethodPost, "/api/v1/agentbots/a1/completions"},
 	}
 	for _, tc := range cases {
 		w := doJSON(r, tc.method, tc.path, `{}`)
@@ -915,7 +658,7 @@ func (s *stubUserTokenResolver) GetAPITokenByBeta(ctx context.Context, authoriza
 }
 
 // TestBotRoutes_NoRegularAuthRequired covers criterion 25. The
-// /api/v1/chatbots/* and /api/v1/agentbots/* routes are mounted
+// /api/v1/chatbots/* routes are mounted
 // on apiNoAuth (NOT on the auth-protected v1 tree). This test
 // exercises the route directly with only a regular user JWT
 // (no beta token) and asserts:
@@ -1175,116 +918,3 @@ func inlineRegisterAgentRoutes(g *gin.RouterGroup, h *AgentHandler) {
 	g.GET("/attachments/:attachment_id/download", h.DownloadAttachment)
 }
 
-func TestGetAgentbotLogs_MissingRouteAgentID(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest("GET",
-		"/api/v1/agentbots/shared-x/logs/msg-1", nil)
-	c.Set("user", &entity.User{ID: "u1"})
-
-	h := NewBotHandler(nil)
-	h.GetAgentbotLogs(c)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200; body = %s", w.Code, w.Body.String())
-	}
-	var resp struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	}
-	_ = json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp.Code != int(common.CodeArgumentError) {
-		t.Errorf("code = %d, want %d", resp.Code, common.CodeArgumentError)
-	}
-	if !strings.Contains(resp.Message, "agent_id") {
-		t.Errorf("message = %q, want it to mention 'agent_id'", resp.Message)
-	}
-}
-
-func TestGetAgentbotLogs_RequiresBoundAgentID(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest("GET",
-		"/api/v1/agentbots/agent-a/logs/msg-1", nil)
-	c.Set("user", &entity.User{ID: "u1"})
-	c.Params = gin.Params{
-		{Key: "agent_id", Value: "agent-a"},
-		{Key: "message_id", Value: "msg-1"},
-	}
-
-	h := NewBotHandler(nil)
-	h.GetAgentbotLogs(c)
-
-	var resp struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	}
-	_ = json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp.Code != int(common.CodeDataError) {
-		t.Errorf("code = %d, want %d", resp.Code, common.CodeDataError)
-	}
-	if !strings.Contains(resp.Message, "not bound") {
-		t.Errorf("message = %q, want it to mention 'not bound'", resp.Message)
-	}
-}
-
-func TestGetAgentbotLogs_CrossAgentDenied(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest("GET",
-		"/api/v1/agentbots/agent-b/logs/msg-1", nil)
-	c.Set("user", &entity.User{ID: "u1"})
-	c.Set("agent_id", "agent-a")
-	c.Params = gin.Params{
-		{Key: "agent_id", Value: "agent-b"},
-		{Key: "message_id", Value: "msg-1"},
-	}
-
-	h := NewBotHandler(nil)
-	h.GetAgentbotLogs(c)
-
-	var resp struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	}
-	_ = json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp.Code != int(common.CodeUnauthorized) {
-		t.Errorf("code = %d, want %d", resp.Code, common.CodeUnauthorized)
-	}
-	if !strings.Contains(resp.Message, "not authorized") {
-		t.Errorf("message = %q, want it to mention 'not authorized'", resp.Message)
-	}
-}
-
-// TestGetAgentbotLogs_MissingMessageID asserts the param contract:
-// message_id is required (used to build the Redis key).
-func TestGetAgentbotLogs_MissingMessageID(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest("GET",
-		"/api/v1/agentbots/shared-x/logs/", nil)
-	c.Set("user", &entity.User{ID: "u1"})
-	c.Set("agent_id", "agent-real")
-	c.Params = gin.Params{{Key: "agent_id", Value: "agent-real"}}
-	// Gin's path param extraction returns "" for a missing
-	// segment so the handler must reject with CodeArgumentError.
-
-	h := NewBotHandler(nil)
-	h.GetAgentbotLogs(c)
-
-	var resp struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	}
-	_ = json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp.Code != int(common.CodeArgumentError) {
-		t.Errorf("code = %d, want %d", resp.Code, common.CodeArgumentError)
-	}
-	if !strings.Contains(resp.Message, "message_id") {
-		t.Errorf("message = %q, want it to mention 'message_id'", resp.Message)
-	}
-}

@@ -224,11 +224,6 @@ func (r *Router) Setup(engine *gin.Engine) {
 		chatBotGroup.POST("/:dialog_id/completions", r.botHandler.ChatbotCompletion)
 		chatBotGroup.GET("/:dialog_id/info", r.botHandler.ChatbotInfo)
 
-		agentBotGroup := apiBetaAuth.Group("/agentbots")
-		agentBotGroup.POST("/:agent_id/completions", r.botHandler.AgentbotCompletion)
-		agentBotGroup.GET("/:agent_id/inputs", r.botHandler.AgentbotInputs)
-		agentBotGroup.GET("/:agent_id/logs/:message_id", r.botHandler.GetAgentbotLogs)
-
 		// Public bot endpoints (authenticated with an SDK beta token, not a session)
 		apiBetaAuth.GET("/documents/:id/preview", r.documentHandler.GetDocumentPreview)
 		apiBetaAuth.GET("/documents/images/:image_id", r.documentHandler.GetDocumentImage)
