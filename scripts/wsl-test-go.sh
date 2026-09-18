@@ -42,6 +42,7 @@ if [ "$1" = "--sync" ]; then
         --exclude node_modules --exclude .venv --exclude __pycache__ \
         --exclude '*.pyc' --exclude '.playwright*' --exclude 'web/dist' \
         --exclude '.worktrees' \
+        --exclude '/.git' \
         --exclude '/bin' --exclude '/cpp/cmake-build-release' --exclude '/cpp/build' \
         "$SRC/" "$REPO/" || exit 1
 fi
