@@ -22,49 +22,55 @@ import (
 	"time"
 
 	"ragflow/go/common"
+	"ragflow/go/engine"
 	"ragflow/go/entity"
 	taskpkg "ragflow/go/ingestion/task"
 	"ragflow/go/ingestion/testutil"
 )
 
-// TestStartWorkerPool_SafeInsideStartOnce reproduces the exact call nesting of
-// Ingestor.start(): the worker pool is started from inside startOnce.Do. The
-// pool must not be guarded by startOnce itself — a second sync.Once.Do on the
-// same goroutine blocks forever on the Once's internal mutex, which would
-// deadlock Start before it reaches the consume loop. A deadlock here leaks the
-// goroutine and fails the test on the watchdog timeout.
-func TestStartWorkerPool_SafeInsideStartOnce(t *testing.T) {
-	const concurrency int32 = 2
-	ingestor := NewIngestor("test-nested-once", concurrency, nil)
-	defer func() {
-		ingestor.cancel()
-		ingestor.workerWg.Wait()
-	}()
+// TestStart_FullPathReturnsAndStartsWorkers is a regression test for the
+// sync.Once re-entrancy deadlock. Before the fix, Start() wrapped the whole
+// startup (start()) in e.startOnce.Do, but start() also called startWorkerPool()
+// which nested the SAME startOnce. sync.Once.Do blocks forever when re-entered
+// from inside its own callback, so Start() hung after InitConsumer succeeded:
+// no worker pool, no consumeLoop, and ingestion tasks were never consumed.
+//
+// The test drives the real Start() path (start -> startWorkerPool -> consumeLoop)
+// against an embedded NATS server and asserts Start() returns within a deadline
+// and that workers are actually up.
+func TestStart_FullPathReturnsAndStartsWorkers(t *testing.T) {
+	// SetMessageQueueEngine mutates process-global state; restore the previous
+	// engine so later tests don't inherit a closed embedded NATS server.
+	previousEngine := engine.GetMessageQueueEngine()
+	engine.SetMessageQueueEngine(testutil.SetupNatsEngine(t))
+	t.Cleanup(func() { engine.SetMessageQueueEngine(previousEngine) })
 
-	done := make(chan struct{})
+	const concurrency int32 = 2
+	ing := NewIngestor("test-start-fullpath", concurrency, nil)
+	t.Cleanup(func() { ing.Stop(context.Background()) })
+
+	done := make(chan error, 1)
 	go func() {
-		defer close(done)
-		ingestor.startOnce.Do(func() {
-			ingestor.startWorkerPool()
-		})
+		done <- ing.Start()
 	}()
 
 	select {
-	case <-done:
-	case <-time.After(3 * time.Second):
-		t.Fatal("startWorkerPool deadlocked when called from inside startOnce.Do")
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Start() returned error: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Start() did not return within 10s; sync.Once re-entrancy deadlock likely")
 	}
 
-	// Workers register themselves asynchronously, so poll briefly.
+	// Start() launches workers asynchronously and returns immediately; poll
+	// briefly so we don't observe zero before a worker enters workerLoop.
 	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		if ingestor.activeWorkers.Load() == concurrency {
-			break
-		}
+	for time.Now().Before(deadline) && ing.activeWorkers.Load() <= 0 {
 		time.Sleep(time.Millisecond)
 	}
-	if got := ingestor.activeWorkers.Load(); got != concurrency {
-		t.Fatalf("activeWorkers after nested start = %d, want %d", got, concurrency)
+	if got := ing.activeWorkers.Load(); got <= 0 {
+		t.Fatalf("expected activeWorkers > 0 after Start(), got %d", got)
 	}
 }
 
