@@ -64,10 +64,15 @@ type Ingestor struct {
 	ShutdownCh chan struct{}
 
 	// Worker pool
-	taskChan  chan *taskpkg.TaskContext
-	workerWg  sync.WaitGroup
+	taskChan chan *taskpkg.TaskContext
+	workerWg sync.WaitGroup
 	startOnce sync.Once
-	stopOnce  sync.Once // guards close(ShutdownCh) against double-close on repeated Stop
+	// workerStartOnce guards the worker pool start. It is deliberately a
+	// separate Once from startOnce: start() runs inside startOnce.Do, so a
+	// nested startOnce.Do on the same goroutine would deadlock on sync.Once's
+	// internal mutex and the consume loop below it would never start.
+	workerStartOnce sync.Once
+	stopOnce        sync.Once // guards close(ShutdownCh) against double-close on repeated Stop
 
 	ingestionTaskSvc *servicepkg.IngestionTaskService
 	docState         *docStateUpdater
@@ -381,8 +386,11 @@ func (e *Ingestor) processMessage(handle common.TaskHandle) {
 	}
 }
 
+// startWorkerPool launches the fixed worker pool. Guarded by workerStartOnce
+// (not startOnce) so that start() can call it from inside startOnce.Do without
+// re-entering the same Once and deadlocking.
 func (e *Ingestor) startWorkerPool() {
-	e.startOnce.Do(func() {
+	e.workerStartOnce.Do(func() {
 		for i := int32(0); i < e.maxConcurrency; i++ {
 			e.workerWg.Add(1)
 			go e.workerLoop(i)
