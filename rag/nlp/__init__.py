@@ -141,14 +141,39 @@ all_codecs = [
 
 
 def find_codec(blob):
-    detected = chardet.detect(blob[:1024])
-    if detected["confidence"] > 0.5:
-        if detected["encoding"] == "ascii":
+    sample = blob[:1024]
+
+    # A blob that decodes as UTF-8 is UTF-8; nothing else needs to be guessed.
+    # Check this first because chardet can report a confident single-byte guess
+    # for short UTF-8 text, and callers decode with errors="ignore", so a wrong
+    # codec is silently lossy instead of raising. The second decode covers a
+    # multi-byte character that the 1024-byte sample cuts in half.
+    try:
+        sample.decode("utf-8")
+        return "utf-8"
+    except UnicodeDecodeError:
+        try:
+            blob.decode("utf-8")
             return "utf-8"
+        except UnicodeDecodeError:
+            pass
+
+    detected = chardet.detect(sample)
+    encoding = detected["encoding"]
+    if encoding:
+        # Honor the detection whenever it decodes the sample. The loop below
+        # returns the first codec that does not raise, and legacy single-byte
+        # codecs (cp037, utf_16) decode arbitrary bytes without error, so a
+        # low-confidence detection still beats the loop's first non-raising hit.
+        try:
+            sample.decode(encoding)
+            return encoding
+        except (UnicodeDecodeError, LookupError) as e:
+            logging.debug("find_codec: detection %r (%.2f) did not decode the sample: %s", encoding, detected["confidence"] or 0.0, e)
 
     for c in all_codecs:
         try:
-            blob[:1024].decode(c)
+            sample.decode(c)
             return c
         except Exception:
             pass
@@ -942,7 +967,7 @@ def remove_contents_table(sections, eng=False):
             nonlocal sections
             return (sections[i] if isinstance(sections[i], type("")) else sections[i][0]).strip()
 
-        if not re.match(r"(contents|目录|目次|table of contents|致谢|acknowledge)$", re.sub(r"( | |\u3000)+", "", get(i).split("@@")[0], flags=re.IGNORECASE)):
+        if not re.match(r"(contents|目录|目次|tableofcontents|致谢|acknowledge)$", re.sub(r"( | |\u3000)+", "", get(i).split("@@")[0]), flags=re.IGNORECASE):
             i += 1
             continue
         sections.pop(i)
@@ -1381,6 +1406,12 @@ def concat_img(img1, img2):
 
 
 def _build_cks(sections, delimiter):
+    """Split ``(text, image, table)`` sections into typed chunks.
+
+    Text is buffered and split on the parsed ``delimiter`` field; each table
+    or image section becomes its own chunk. Returns
+    ``(cks, tables, images, has_custom)``.
+    """
     cks = []
     tables = []
     images = []
@@ -1396,6 +1427,29 @@ def _build_cks(sections, delimiter):
         pattern = r"(%s)" % custom_pattern
 
     seg = ""
+
+    def _flush_seg():
+        """Emit pending text before a table/image chunk is appended.
+
+        Plain text is buffered in ``seg`` and only flushed when a delimiter
+        matches, whereas table/image chunks are appended immediately. Without
+        this flush the buffered text lands *after* the table/image, breaking
+        document order and swapping context_above / context_below in
+        _add_context() (which decides "above"/"below" by array position).
+        """
+        nonlocal seg
+        if seg and seg.strip():
+            s = seg.strip()
+            cks.append(
+                {
+                    "text": s,
+                    "image": None,
+                    "ck_type": "text",
+                    "tk_nums": num_tokens_from_string(s),
+                }
+            )
+        seg = ""
+
     for text, image, table in sections:
         # normalize text: ensure string and prepend newline for continuity
         if not text:
@@ -1405,6 +1459,7 @@ def _build_cks(sections, delimiter):
 
         if table:
             # table chunk
+            _flush_seg()
             ck_text = text + str(table)
             idx = len(cks)
             cks.append(
@@ -1420,6 +1475,7 @@ def _build_cks(sections, delimiter):
 
         if image:
             # image chunk (text kept as-is for context)
+            _flush_seg()
             idx = len(cks)
             cks.append(
                 {

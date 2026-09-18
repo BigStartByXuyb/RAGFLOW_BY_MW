@@ -35,7 +35,9 @@ import numpy as np
 import pytest
 
 from rag.llm.embedding_model import (
+    BaiduYiyanEmbed,
     DEFAULT_MAX_TOKENS,
+    AzureEmbed,
     BedrockEmbed,
     EmbeddingError,
     LocalAIEmbed,
@@ -43,6 +45,7 @@ from rag.llm.embedding_model import (
     NvidiaEmbed,
     OllamaEmbed,
     OpenAIEmbed,
+    ReplicateEmbed,
     ZhipuEmbed,
 )
 from common.exceptions import ModelException
@@ -320,6 +323,30 @@ class TestBatching:
 # 5. Provider-specific request/response shapes
 # --------------------------------------------------------------------------- #
 @pytest.mark.p2
+class TestAzureEmbeddingEndpoint:
+    def test_uses_azure_resource_endpoint_without_openai_v1_suffix(self, monkeypatch):
+        captured = {}
+
+        class FakeAzureOpenAI:
+            def __init__(self, **kwargs):
+                captured.update(kwargs)
+                self.embeddings = SimpleNamespace(create=MagicMock())
+
+        monkeypatch.setattr("openai.lib.azure.AzureOpenAI", FakeAzureOpenAI)
+
+        embed = AzureEmbed(
+            json.dumps({"api_key": "azure-key", "api_version": "2024-02-01"}),
+            "text-embedding-3-small",
+            base_url="https://example.openai.azure.com/",
+        )
+
+        assert embed.base_url == "https://example.openai.azure.com"
+        assert captured["azure_endpoint"] == "https://example.openai.azure.com"
+        assert captured["api_key"] == "azure-key"
+        assert captured["api_version"] == "2024-02-01"
+
+
+@pytest.mark.p2
 class TestNvidiaInputType:
     """NVIDIA NIM expects input_type=passage for documents and =query for queries;
     using "query" for documents degrades retrieval (asymmetric embeddings)."""
@@ -341,6 +368,22 @@ class TestNvidiaInputType:
         with patch("rag.llm.embedding_model.requests.post", return_value=self._mock_resp()) as post:
             embed.encode_queries("a query")
         assert post.call_args.kwargs["json"]["input_type"] == "query"
+
+
+@pytest.mark.p2
+class TestReplicateEmbedding:
+    def test_query_uses_run_and_returns_single_vector(self):
+        embed = ReplicateEmbed.__new__(ReplicateEmbed)
+        embed.model_name = "owner/model:version"
+        embed.client = MagicMock(spec=["run"])
+        embed.client.run.return_value = [[1.0, 2.0, 3.0]]
+
+        vector, tokens = embed.encode_queries("hello")
+
+        embed.client.run.assert_called_once_with("owner/model:version", input={"texts": ["hello"]})
+        assert vector.shape == (3,)
+        np.testing.assert_array_equal(vector, np.array([1.0, 2.0, 3.0]))
+        assert tokens == num_tokens_from_string("hello")
 
 
 @pytest.mark.p2
@@ -381,3 +424,23 @@ class TestBedrockResponseParsing:
         embed.client.invoke_model.return_value = self._body({"embeddings": [[5.0, 6.0]]})
         vector, _ = embed.encode_queries("q")
         np.testing.assert_array_equal(vector, np.array([5.0, 6.0]))
+
+
+@pytest.mark.p2
+class TestBaiduYiyanResponseParsing:
+    def test_query_returns_single_vector(self):
+        embed = BaiduYiyanEmbed.__new__(BaiduYiyanEmbed)
+        embed.model_name = "bge-large-zh"
+        embed.client = MagicMock()
+        embed.client.do.return_value = SimpleNamespace(
+            body={
+                "data": [{"embedding": [1.0, 2.0, 3.0]}],
+                "usage": {"total_tokens": 7},
+            }
+        )
+
+        vector, tokens = embed.encode_queries("hello")
+
+        assert vector.shape == (3,)
+        np.testing.assert_array_equal(vector, np.array([1.0, 2.0, 3.0]))
+        assert tokens == 7
