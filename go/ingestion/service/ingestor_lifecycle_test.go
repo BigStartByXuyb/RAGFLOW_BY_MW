@@ -27,10 +27,51 @@ import (
 	"ragflow/go/ingestion/testutil"
 )
 
+// TestStartWorkerPool_SafeInsideStartOnce reproduces the exact call nesting of
+// Ingestor.start(): the worker pool is started from inside startOnce.Do. The
+// pool must not be guarded by startOnce itself — a second sync.Once.Do on the
+// same goroutine blocks forever on the Once's internal mutex, which would
+// deadlock Start before it reaches the consume loop. A deadlock here leaks the
+// goroutine and fails the test on the watchdog timeout.
+func TestStartWorkerPool_SafeInsideStartOnce(t *testing.T) {
+	const concurrency int32 = 2
+	ingestor := NewIngestor("test-nested-once", concurrency, nil)
+	defer func() {
+		ingestor.cancel()
+		ingestor.workerWg.Wait()
+	}()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ingestor.startOnce.Do(func() {
+			ingestor.startWorkerPool()
+		})
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("startWorkerPool deadlocked when called from inside startOnce.Do")
+	}
+
+	// Workers register themselves asynchronously, so poll briefly.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if ingestor.activeWorkers.Load() == concurrency {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if got := ingestor.activeWorkers.Load(); got != concurrency {
+		t.Fatalf("activeWorkers after nested start = %d, want %d", got, concurrency)
+	}
+}
+
 // TestStartWorkerPool_StartOnceIdempotent verifies that calling startWorkerPool
-// twice only starts maxConcurrency workers (sync.Once gate). It observes the
-// active worker count directly: a broken sync.Once would double the worker
-// pool and activeWorkers would exceed concurrency after the second call.
+// twice only starts maxConcurrency workers (workerStartOnce gate). It observes
+// the active worker count directly: a broken Once would double the worker pool
+// and activeWorkers would exceed concurrency after the second call.
 func TestStartWorkerPool_StartOnceIdempotent(t *testing.T) {
 	const concurrency int32 = 3
 	ingestor := NewIngestor("test-idempotent", concurrency, nil)

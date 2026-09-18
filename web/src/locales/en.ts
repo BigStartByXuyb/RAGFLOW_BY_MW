@@ -122,7 +122,7 @@ export default {
       logout: 'Log out',
       fileManager: 'File',
       skills: 'Skills',
-      flow: 'Agent',
+      flow: 'Pipelines',
       search: 'Search',
       welcome: 'Welcome to',
       dataset: 'Dataset',
@@ -1870,6 +1870,8 @@ Example: Virtual Hosted Style`,
       groupName: 'Group name',
       groupNameRequired: 'Please input group name',
       groupDescription: 'Group description',
+      groupDescriptionTooltip:
+        'Explains what this template group is for. It is mainly for people managing templates, not a chunking rule.',
       templateCount: '{{count}} template(s)',
       atLeastOneTemplateRequired: 'At least one template is required',
       template: 'Template',
@@ -1885,14 +1887,43 @@ Example: Virtual Hosted Style`,
       templateName: 'Name',
       templateNameRequired: 'Please input template name',
       templateDescription: 'Description',
+      templateDescriptionTooltip:
+        'Explains the purpose of this specific compilation template. The extraction schema and LLM instructions are configured below.',
       llmForExtraction: 'Default Model for extraction',
+      llmForExtractionTooltip:
+        'The LLM used to extract structured information from document chunks for this template.',
       llmForExtractionRequired: 'Please select an LLM model',
       templateKind: 'Kind',
+      templateKindTooltip:
+        'Select the artifact type to build, such as Wiki, Graph, Timeline, or Tree. This does not choose the document chunking method.',
+      templateKindOptionTooltip: {
+        artifacts:
+          'Build Wiki-style artifact pages by extracting, merging, and organizing knowledge from document chunks.',
+        knowledge_graph:
+          'Extract entities and relations from document chunks to build a knowledge graph.',
+        timeline:
+          'Extract events, dates, and temporal relationships to organize information as a timeline.',
+        page_index:
+          'Build a structured page index to help organize and navigate document content.',
+        tree: 'Cluster and organize document chunks into a hierarchical tree structure.',
+        empty: 'Use an empty compilation template as a starting point for custom configuration.',
+        mind_map: 'Organize extracted topics and relationships into a mind map.',
+        session_graph: 'Extract and organize conversation entities and relationships as a session graph.',
+        session_essence: 'Summarize and extract the key essence from conversation sessions.',
+      },
       templateKindRequired: 'Please select a kind',
       entitySpecification: 'Entity specification',
+      entitySpecificationTooltip:
+        'Defines the kinds of entities the LLM should identify in each document chunk, such as systems, people, products, or modules.',
       relationSpecification: 'Relation specification',
+      relationSpecificationTooltip:
+        'Defines the relationships the LLM should extract between previously identified entities.',
       conceptSpecification: 'Concept specification',
+      conceptSpecificationTooltip:
+        'Defines important concepts or topics that should be collected from the document chunks.',
       claimSpecification: 'Claim specification',
+      claimSpecificationTooltip:
+        'Defines factual statements, conclusions, or assertions that the LLM should extract from the document chunks.',
       field: 'Field',
       fieldType: 'Type',
       fieldTypeRequired: 'Please select a type',
@@ -1906,7 +1937,13 @@ Example: Virtual Hosted Style`,
       example: 'Page-structure example',
       examplePlaceholder: 'Input example',
       instruction: 'Instruction',
+      instructionTooltip:
+        'Guides the LLM when writing the final artifact page, including its structure, tone, headings, and linking style.',
+      pageExampleTooltip:
+        'An example of the desired final page format. It helps the LLM produce pages with a consistent structure.',
       globalRules: 'Global rules',
+      globalRulesTooltip:
+        'Rules applied across the template extraction process, such as output format, language, entity constraints, and relation constraints.',
       globalRulesPlaceholder: 'Input global compilation rules',
       raptorTreeSettings: 'RAPTOR tree settings',
       summarizationPrompt: 'Summarization prompt',

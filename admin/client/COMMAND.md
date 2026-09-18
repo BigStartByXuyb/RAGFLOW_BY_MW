@@ -492,6 +492,29 @@ ragflow> LIST FILES OF DATASET 'my_dataset';
 
 ---
 
+### list_user_agents
+
+**Description**  
+Lists all agents for the current user.
+
+**Usage**  
+```
+LIST AGENTS;
+```
+
+**Parameters**  
+No parameters.
+
+**Example**  
+```
+ragflow> LIST AGENTS;
+```
+
+**Display Effect**  
+(Sample output will be provided by the user)
+
+---
+
 ### list_user_chats
 
 **Description**  

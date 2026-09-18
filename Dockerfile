@@ -260,7 +260,6 @@ COPY api api
 COPY conf conf
 COPY deepdoc deepdoc
 COPY rag rag
-COPY agent agent
 COPY pyproject.toml uv.lock ./
 COPY mcp mcp
 COPY common common

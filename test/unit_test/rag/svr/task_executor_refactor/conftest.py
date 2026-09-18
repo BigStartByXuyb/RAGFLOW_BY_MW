@@ -109,6 +109,15 @@ def standard_task_dict() -> Dict[str, Any]:
 
 
 @pytest.fixture
+def dataflow_task_dict() -> Dict[str, Any]:
+    """Provide a task dict for dataflow tasks."""
+    task = standard_task_dict()
+    task["task_type"] = "dataflow"
+    task["dataflow_id"] = "dataflow_test"
+    return task
+
+
+@pytest.fixture
 def raptor_task_dict() -> Dict[str, Any]:
     """Provide a task dict for RAPTOR tasks."""
     task = standard_task_dict()
@@ -511,6 +520,7 @@ def make_task_context(**overrides):
         "size": 1000,
         "pagerank": 0,
         "task_type": "standard",
+        "dataflow_id": "",
         "doc_ids": [],
         "file": None,
         "memory_id": "",

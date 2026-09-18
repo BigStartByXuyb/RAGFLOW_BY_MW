@@ -1,5 +1,6 @@
 import MarkdownEditor from '@/components/markdown-editor';
 import { RAGFlowFormItem } from '@/components/ragflow-form';
+import WhatIsThis from '@/components/what-is-this';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { TreeDataItem, TreeView } from '@/components/ui/tree-view';
@@ -169,11 +170,16 @@ export function BlueprintsStep({
               <RAGFlowFormItem
                 name={instructionPath}
                 label={t('setting.instruction')}
+                tooltip={t('setting.instructionTooltip')}
               >
                 <Textarea rows={6} />
               </RAGFlowFormItem>
 
               <div className="flex-1 min-h-0 flex flex-col">
+                <div className="flex items-center gap-1 text-sm font-medium text-text-primary">
+                  <span>{t('setting.example')}</span>
+                  <WhatIsThis>{t('setting.pageExampleTooltip')}</WhatIsThis>
+                </div>
                 <MarkdownEditor
                   content={String(pageExample ?? '')}
                   onChange={handlePageExampleChange}

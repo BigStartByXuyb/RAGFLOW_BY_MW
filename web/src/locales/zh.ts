@@ -105,7 +105,7 @@ export default {
       logout: '登出',
       fileManager: '文件管理',
       skills: '技能',
-      flow: '智能体',
+      flow: '流水线',
       search: '搜索',
       welcome: '欢迎来到',
       dataset: '知识库',
@@ -1558,6 +1558,8 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取实体和关系
       groupName: '分组名称',
       groupNameRequired: '请输入分组名称',
       groupDescription: '分组描述',
+      groupDescriptionTooltip:
+        '说明这个模板分组的用途，主要供用户管理和识别模板，不是 Chunk 切分规则。',
       templateCount: '{{count}} 个模板',
       atLeastOneTemplateRequired: '至少需要一个模板',
       template: '模板',
@@ -1572,14 +1574,38 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取实体和关系
       templateName: '名称',
       templateNameRequired: '请输入模板名称',
       templateDescription: '描述',
+      templateDescriptionTooltip:
+        '说明这个具体编译模板的用途。抽取 Schema 和 LLM 指令在下面的配置中设置。',
       llmForExtraction: '默认提取模型',
+      llmForExtractionTooltip: '用于从文档 Chunk 中抽取结构化信息的 LLM。',
       llmForExtractionRequired: '请选择 LLM 模型',
       templateKind: '类型',
+      templateKindTooltip:
+        '选择要生成的知识产物类型，例如 Wiki、Graph、Timeline 或 Tree。它不会选择文档的 Chunk 切分方式。',
+      templateKindOptionTooltip: {
+        artifacts: '从文档 Chunk 中抽取、合并和组织知识，生成 Wiki 风格的知识页面。',
+        knowledge_graph: '从文档 Chunk 中抽取实体和关系，构建知识图谱。',
+        timeline: '抽取事件、日期和时间关系，将信息组织成时间线。',
+        page_index: '生成结构化的页面索引，帮助组织和浏览文档内容。',
+        tree: '将文档 Chunk 聚类并组织成层级树结构。',
+        empty: '使用空的编译模板，作为自定义配置的起点。',
+        mind_map: '将抽取出的主题和关系组织成思维导图。',
+        session_graph: '抽取并组织对话中的实体和关系，生成会话图谱。',
+        session_essence: '总结并抽取对话会话中的核心内容。',
+      },
       templateKindRequired: '请选择类型',
       entitySpecification: 'Entity specification',
+      entitySpecificationTooltip:
+        '定义 LLM 应该从每个文档 Chunk 中识别的实体类型，例如系统、人员、产品或模块。',
       relationSpecification: 'Relation specification',
+      relationSpecificationTooltip:
+        '定义 LLM 应该从已识别实体之间抽取的关系类型。',
       conceptSpecification: 'Concept specification',
+      conceptSpecificationTooltip:
+        '定义应该从文档 Chunk 中收集的重要概念或主题。',
       claimSpecification: 'Claim specification',
+      claimSpecificationTooltip:
+        '定义 LLM 应该从文档 Chunk 中抽取的事实、结论或断言。',
       field: '字段',
       fieldType: 'Type',
       fieldTypeRequired: '请选择 type',
@@ -1593,7 +1619,12 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取实体和关系
       example: '页面结构示例',
       examplePlaceholder: '请输入示例',
       instruction: 'Instruction',
+      instructionTooltip:
+        '指导 LLM 如何编写最终的知识产物页面，包括结构、语气、标题和链接方式。',
+      pageExampleTooltip: '最终页面格式的示例，帮助 LLM 按一致的结构生成页面。',
       globalRules: '全局规则',
+      globalRulesTooltip:
+        '应用于整个模板抽取过程的规则，例如输出格式、语言、实体约束和关系约束。',
       globalRulesPlaceholder: '请输入全局编译规则',
       raptorTreeSettings: 'RAPTOR 树设置',
       summarizationPrompt: '摘要提示词',

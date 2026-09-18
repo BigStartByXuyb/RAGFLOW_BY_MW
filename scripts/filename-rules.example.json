@@ -1,0 +1,11 @@
+{
+  "_comment": "Matched against the file name, first match wins. A rule sets either parser_id (built-in strategy) or pipeline_id (your own pipeline, parse_type=2). A file that matches nothing keeps the knowledge base default. Copy to filename-rules.json and edit.",
+  "rules": [
+    { "pattern": "*合同*", "parser_id": "table" },
+    { "pattern": "*论文*", "parser_id": "paper" },
+    { "pattern": "*手册*", "parser_id": "manual" },
+    { "pattern": "*_qa_*", "parser_id": "qa" },
+    { "pattern": "*法条*", "parser_id": "laws" },
+    { "pattern": "*简历*", "parser_id": "resume" }
+  ]
+}

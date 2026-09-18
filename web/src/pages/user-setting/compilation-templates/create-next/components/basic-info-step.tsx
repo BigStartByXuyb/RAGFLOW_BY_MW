@@ -21,6 +21,7 @@ export function BasicInfoStep() {
       <RAGFlowFormItem
         name="description"
         label={t('setting.groupDescription')}
+        tooltip={t('setting.groupDescriptionTooltip')}
         horizontal
       >
         <Textarea

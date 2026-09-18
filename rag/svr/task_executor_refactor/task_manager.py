@@ -21,10 +21,11 @@ for executing document processing tasks, supporting both production and dry-run 
 """
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from rag.svr.task_executor_refactor.comparator import ContextComparator
 from rag.svr.task_executor_refactor.task_context import TaskCallbacks, TaskDict, TaskLimiters
+from rag.svr.task_executor_refactor.dataflow_service import BillingHook
 from rag.svr.task_executor_refactor.recording_context import (
     BaseRecordingContext,
     RecordingContext,
@@ -64,6 +65,7 @@ class TaskManager:
         kg_limiter: Any,
         set_progress: Any,
         has_canceled: Any,
+        billing_hook: Optional[BillingHook] = None,
     ) -> None:
         """Run a document processing task in production mode.
 
@@ -76,6 +78,7 @@ class TaskManager:
             kg_limiter: Rate limiter for knowledge graph operations.
             set_progress: Progress callback function.
             has_canceled: Function to check if task is canceled.
+            billing_hook: Optional billing hook for pipeline success/error callbacks.
         """
         with recording_context_manager(_NULL_RECORDING_CONTEXT):
             # Use NullRecordingContext in production to avoid memory allocation
@@ -99,7 +102,7 @@ class TaskManager:
             )
 
             # Execute with TaskHandler
-            handler = TaskHandler(ctx=task_context)
+            handler = TaskHandler(ctx=task_context, billing_hook=billing_hook)
             await handler.handle_task()
 
     @classmethod

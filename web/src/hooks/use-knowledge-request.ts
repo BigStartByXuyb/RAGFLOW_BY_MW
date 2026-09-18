@@ -68,7 +68,10 @@ import {
   useGetPaginationWithRouter,
   useHandleSearchChange,
 } from './logic-hooks';
-import { extractParserConfigExt } from './parser-config-utils';
+import {
+  extractParserConfigExt,
+  isPipelineParserConfig,
+} from './parser-config-utils';
 import { useSetPaginationParams } from './route-hook';
 
 export const enum KnowledgeApiAction {
@@ -253,6 +256,8 @@ export const useCreateKnowledge = () => {
       name: string;
       embedding_model?: string;
       chunk_method?: string;
+      parseType?: ParseType;
+      pipeline_id?: string | null;
       ext?: {
         language?: string;
         [key: string]: any;
@@ -312,6 +317,7 @@ export const useUpdateKnowledge = (shouldFetchList = false) => {
       name?: string;
       embedding_model?: string;
       chunk_method?: string;
+      pipeline_id?: string | null;
       avatar?: string | null;
       description?: string;
       permission?: string;
@@ -323,6 +329,7 @@ export const useUpdateKnowledge = (shouldFetchList = false) => {
       const {
         embedding_model,
         chunk_method,
+        pipeline_id,
         avatar,
         description,
         permission,
@@ -334,11 +341,14 @@ export const useUpdateKnowledge = (shouldFetchList = false) => {
         name,
         embedding_model,
         chunk_method,
+        pipeline_id,
         avatar,
         description,
         permission,
         pagerank,
-        parser_config: extractParserConfigExt(parser_config),
+        parser_config: isPipelineParserConfig(parser_config)
+          ? parser_config
+          : extractParserConfigExt(parser_config),
         ...omit(ext, ['kb_id']),
       };
 
@@ -370,6 +380,36 @@ export const useFetchKnowledgeBaseConfiguration = (props?: {
 
   const { data, isFetching: loading } = useQuery<IDataset>({
     queryKey: [KnowledgeApiAction.FetchKnowledgeDetail, knowledgeBaseId],
+    initialData: {} as IDataset,
+    gcTime: 0,
+    enabled: !!knowledgeBaseId && isEdit,
+    queryFn: async () => {
+      const { data } = await getKbDetail(knowledgeBaseId || '');
+      return data?.data ?? {};
+    },
+  });
+
+  return { data, loading };
+};
+
+export const DatasetPipelineConfigurationKeys = {
+  detail: (knowledgeBaseId: string | null | undefined) =>
+    [
+      KnowledgeApiAction.FetchDatasetPipelineConfiguration,
+      knowledgeBaseId,
+    ] as const,
+};
+
+export const useFetchDatasetPipelineConfiguration = (props?: {
+  isEdit?: boolean;
+}) => {
+  const { isEdit = true } = props || { isEdit: true };
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const knowledgeBaseId = searchParams.get('id') || id;
+
+  const { data, isFetching: loading } = useQuery<IDataset>({
+    queryKey: DatasetPipelineConfigurationKeys.detail(knowledgeBaseId),
     initialData: {} as IDataset,
     gcTime: 0,
     enabled: !!knowledgeBaseId && isEdit,

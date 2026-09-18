@@ -10,6 +10,7 @@ import {
   PropsWithChildren,
   memo,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useState,
@@ -18,6 +19,8 @@ import {
 import { IRegenerateMessage, IRemoveMessageById } from '@/hooks/logic-hooks';
 import { INodeEvent, MessageEventType } from '@/hooks/use-send-message';
 import { cn } from '@/lib/utils';
+import { AgentChatContext } from '@/pages/agent/context';
+import { WorkFlowTimeline } from '@/pages/agent/log-sheet/workflow-timeline';
 import { citationMarkerReg } from '@/utils/citation-utils';
 import { getDirAttribute } from '@/utils/text-direction';
 import { isEmpty } from 'lodash';
@@ -83,6 +86,13 @@ function MessageItem({
   const isAssistant = item.role === MessageType.Assistant;
   const isUser = item.role === MessageType.User;
   const [showThinking, setShowThinking] = useState(false);
+  const { setLastSendLoadingFunc } = useContext(AgentChatContext);
+
+  useEffect(() => {
+    if (typeof setLastSendLoadingFunc === 'function') {
+      setLastSendLoadingFunc(loading, item.id);
+    }
+  }, [loading, setLastSendLoadingFunc, item.id]);
 
   const referenceDocuments = useMemo(() => {
     const docs = reference?.doc_aggs ?? {};
@@ -258,6 +268,22 @@ function MessageItem({
                 )}
               </div>
             </div>
+
+            {isAssistant &&
+              currentEventListWithoutMessageById &&
+              showThinking && (
+                <div className="mt-4 mb-4">
+                  <WorkFlowTimeline
+                    currentEventListWithoutMessage={currentEventListWithoutMessageById(
+                      item.id,
+                    )}
+                    isShare={isShare}
+                    currentMessageId={item.id}
+                    canvasId={conversationId}
+                    sendLoading={loading}
+                  />
+                </div>
+              )}
 
             {renderContent()}
 

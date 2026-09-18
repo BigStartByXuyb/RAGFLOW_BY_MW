@@ -1,6 +1,7 @@
 import { ModelTreeSelectFormField } from '@/components/model-tree-select';
 import { SelectWithSearch } from '@/components/originui/select-with-search';
 import { RAGFlowFormItem } from '@/components/ragflow-form';
+import WhatIsThis from '@/components/what-is-this';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -29,10 +30,17 @@ import { AddFieldModal } from './add-field-modal';
 import { SectionFieldGrid } from './section-field-grid';
 import { TemplatePreviewHeader } from './template-preview-header';
 
+const sectionTooltipKeyMap: Record<string, string> = {
+  entity: 'setting.entitySpecificationTooltip',
+  relation: 'setting.relationSpecificationTooltip',
+  claim: 'setting.claimSpecificationTooltip',
+  concept: 'setting.conceptSpecificationTooltip',
+};
+
 type TemplateConfigurationProps = {
   form: UseFormReturn<FormSchemaType>;
   builtins: ICompilationTemplateBuiltin[];
-  kindOptions: { label: string; value: string }[];
+  kindOptions: { label: string; value: string; tooltip?: string }[];
   selectedTemplateIndex: number;
   onNext: () => void;
   onBack: () => void;
@@ -154,6 +162,7 @@ export function TemplateConfiguration({
           <RAGFlowFormItem
             name={`templates.${selectedTemplateIndex}.description`}
             label={t('setting.templateDescription')}
+            tooltip={t('setting.templateDescriptionTooltip')}
           >
             <Textarea
               placeholder={t('common.descriptionPlaceholder')}
@@ -165,12 +174,14 @@ export function TemplateConfiguration({
           <ModelTreeSelectFormField
             name={`templates.${selectedTemplateIndex}.llm_id`}
             label={t('setting.llmForExtraction')}
+            tooltip={t('setting.llmForExtractionTooltip')}
             required
           />
 
           <RAGFlowFormItem
             name={`templates.${selectedTemplateIndex}.kind`}
             label={t('knowledgeCompilation.builtinTemplates')}
+            tooltip={t('setting.templateKindTooltip')}
             required
           >
             {(field) => (
@@ -187,6 +198,7 @@ export function TemplateConfiguration({
           <RAGFlowFormItem
             name={`templates.${selectedTemplateIndex}.config.global_rules`}
             label={t('setting.globalRules')}
+            tooltip={t('setting.globalRulesTooltip')}
           >
             <Textarea
               placeholder={t('setting.globalRulesPlaceholder')}
@@ -211,6 +223,11 @@ export function TemplateConfiguration({
                       key={sectionName}
                       value={sectionName}
                       className="flex-1"
+                      title={
+                        sectionTooltipKeyMap[sectionName]
+                          ? t(sectionTooltipKeyMap[sectionName])
+                          : undefined
+                      }
                     >
                       {t(
                         SectionTitleKeyMap[sectionName] ??

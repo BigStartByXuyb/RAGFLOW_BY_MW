@@ -32,8 +32,11 @@ import "time"
 type KnowledgeCompileDoc struct {
 	DatasetID      string     `gorm:"primaryKey;column:dataset_id;size:64" json:"dataset_id"`
 	TenantID       string     `gorm:"column:tenant_id;size:64;not null;default:''" json:"tenant_id"`
-	BacklogDocIDs  string     `gorm:"column:backlog_doc_ids;type:text;not null;default:'[]'" json:"backlog_doc_ids"`
-	InflightDocIDs string     `gorm:"column:inflight_doc_ids;type:text;not null;default:'[]'" json:"inflight_doc_ids"`
+	// MySQL rejects a literal DEFAULT on TEXT columns (error 1101), so the
+	// empty-array default is applied in Go: AppendBacklog seeds both columns
+	// with "[]" on insert.
+	BacklogDocIDs  string     `gorm:"column:backlog_doc_ids;type:text;not null" json:"backlog_doc_ids"`
+	InflightDocIDs string     `gorm:"column:inflight_doc_ids;type:text;not null" json:"inflight_doc_ids"`
 	ClaimOwner     string     `gorm:"column:claim_owner;size:64;not null;default:''" json:"claim_owner"`
 	ClaimToken     string     `gorm:"column:claim_token;size:64;not null;default:''" json:"claim_token"`
 	ClaimExpiresAt *time.Time `gorm:"column:claim_expires_at;default:null" json:"claim_expires_at"`

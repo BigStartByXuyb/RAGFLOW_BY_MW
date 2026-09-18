@@ -1,4 +1,6 @@
 import { BuiltinPipelineItem } from '@/components/builtin-pipeline-form-field';
+import { DataFlowSelect } from '@/components/data-pipeline-select';
+import { ParseTypeItem } from '@/components/parse-type-form-field';
 import { ButtonLoading } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,11 +19,14 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { FormLayout } from '@/constants/form';
+import { ParseType } from '@/constants/knowledge';
 import { useFetchDefaultModelDictionary } from '@/hooks/use-llm-request';
 import { IModalProps } from '@/interfaces/common';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { omit } from 'lodash';
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import {
@@ -45,6 +50,7 @@ export function InputForm({ onOk }: IModalProps<any>) {
           message: t('knowledgeList.namePlaceholder'),
         })
         .trim(),
+      parseType: z.nativeEnum(ParseType).optional(),
       embedding_model: z
         .string()
         .min(1, {
@@ -52,13 +58,26 @@ export function InputForm({ onOk }: IModalProps<any>) {
         })
         .trim(),
       [ChunkMethodName]: z.string().optional(),
+      pipeline_id: z.string().optional(),
     })
     .superRefine((data, ctx) => {
-      if (!data[ChunkMethodName] || data[ChunkMethodName].trim() === '') {
+      // When parseType === BuiltIn, chunk_method is required
+      if (
+        data.parseType === ParseType.BuiltIn &&
+        (!data[ChunkMethodName] || data[ChunkMethodName].trim() === '')
+      ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: t('knowledgeList.parserRequired'),
           path: [ChunkMethodName],
+        });
+      }
+      // When parseType === Pipeline, pipeline_id required
+      if (data.parseType === ParseType.Pipeline && !data.pipeline_id) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t('knowledgeList.dataFlowRequired'),
+          path: ['pipeline_id'],
         });
       }
     });
@@ -67,20 +86,33 @@ export function InputForm({ onOk }: IModalProps<any>) {
     resolver: zodResolver(FormSchema),
     defaultValues: {
       name: '',
+      parseType: ParseType.BuiltIn,
       [ChunkMethodName]: '',
       embedding_model: defaultModelDictionary?.embd_id,
     },
   });
 
+  const parseType = useWatch({
+    control: form.control,
+    name: 'parseType',
+  });
+
   function onSubmit(data: z.infer<typeof FormSchema>) {
-    onOk?.(data);
+    const nextData =
+      parseType === ParseType.BuiltIn
+        ? omit(data, ['pipeline_id'])
+        : omit(data, [ChunkMethodName]);
+    onOk?.(nextData);
   }
 
   useEffect(() => {
+    if (parseType === ParseType.BuiltIn) {
+      form.setValue('pipeline_id', '');
+    }
     if (defaultModelDictionary?.embd_id) {
       form.setValue('embedding_model', defaultModelDictionary?.embd_id);
     }
-  }, [form, defaultModelDictionary]);
+  }, [parseType, form, defaultModelDictionary]);
 
   return (
     <Form {...form}>
@@ -109,10 +141,20 @@ export function InputForm({ onOk }: IModalProps<any>) {
         />
 
         <EmbeddingModelItem line={2} isEdit={false} />
-        {isGoBackend() ? (
-          <BuiltinPipelineItem name={ChunkMethodName} />
-        ) : (
-          <ChunkMethodItem name={ChunkMethodName} />
+        <ParseTypeItem />
+        {parseType === ParseType.BuiltIn &&
+          (isGoBackend() ? (
+            <BuiltinPipelineItem name={ChunkMethodName} />
+          ) : (
+            <ChunkMethodItem name={ChunkMethodName}></ChunkMethodItem>
+          ))}
+        {parseType === ParseType.Pipeline && (
+          <DataFlowSelect
+            isMult={false}
+            showToDataPipeline={true}
+            formFieldName="pipeline_id"
+            layout={FormLayout.Vertical}
+          />
         )}
       </form>
     </Form>

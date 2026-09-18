@@ -15,19 +15,19 @@ import { useEditNextCompilationTemplateGroup } from './hooks/use-edit-next-compi
 
 const SelectedTemplateIndex = 0;
 
-const compilationTemplatesUrl = `${Routes.UserSetting}${Routes.CompilationTemplates}`;
+const agentsUrl = Routes.Agents;
 
 export default function EditNextCompilationTemplate() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const navigateToCompilationTemplates = useCallback(() => {
-    navigate(compilationTemplatesUrl);
+  const navigateToAgents = useCallback(() => {
+    navigate(agentsUrl);
   }, [navigate]);
 
   const { form, kindOptions, builtins, onSubmit, isCreate, isLoading } =
     useEditNextCompilationTemplateGroup({
-      onSuccess: navigateToCompilationTemplates,
+      onSuccess: navigateToAgents,
     });
   const { data: group } = useFetchCompilationTemplateGroup();
 
@@ -46,7 +46,7 @@ export default function EditNextCompilationTemplate() {
   return (
     <section className="h-full flex flex-col bg-bg-base">
       <header className="shrink-0 px-5 py-4 border-b border-border-button flex gap-3 items-center">
-        <BackButton to={compilationTemplatesUrl} />
+        <BackButton to={agentsUrl} />
         <h2 className="font-medium text-text-secondary">
           {isCreate
             ? t('setting.addTemplateGroup')
@@ -71,7 +71,7 @@ export default function EditNextCompilationTemplate() {
           </TemplateConfiguration>
 
           <footer className="shrink-0 px-5 py-4 border-t border-border-button flex items-center justify-end gap-5">
-            <Button type="button" variant="outline" onClick={navigateToCompilationTemplates}>
+            <Button type="button" variant="outline" onClick={navigateToAgents}>
               {t('common.back')}
             </Button>
             <Button type="submit" loading={isLoading}>
